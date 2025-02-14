@@ -1,0 +1,41 @@
+# Ignore Python virtual environment
+.venv/
+venv/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore environment variables & credentials
+.env
+*.env
+
+# Ignore database files (if using SQLite for testing)
+*.db
+*.sqlite3
+
+# Ignore logs and temporary files
+logs/
+*.log
+*.out
+*.pid
+*.swp
+
+# Ignore PyCharm IDE files
+.idea/
+
+# Ignore Flask migrations (if needed)
+migrations/
+
+# Ignore Node.js dependencies (they should be installed via npm install)
+frontend/node_modules/
+
+# Ignore build files
+frontend/build/
+frontend/dist/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
