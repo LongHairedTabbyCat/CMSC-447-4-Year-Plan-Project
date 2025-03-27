@@ -1,55 +1,51 @@
-import React, { useEffect, useState } from "react";  // Import React hooks
-import axios from "axios";  // Import Axios for making HTTP requests
+import React, { useState } from "react";
+import "./App.css";
 
 function App() {
-  // State variables to store users, name input, and email input
-  const [users, setUsers] = useState([]);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [expanded, setExpanded] = useState({});
 
-  // Fetch users from the Flask backend when the component loads
-  useEffect(() => {
-    axios.get("http://127.0.0.1:5000/users")  // Send GET request to Flask API
-      .then(response => setUsers(response.data))  // Store received users in state
-      .catch(error => console.error("Error fetching users:", error));  // Handle errors
-  }, []);  // Empty dependency array means this runs only once when the component mounts
-
-  // Function to add a new user to the database
-  const addUser = () => {
-    axios.post("http://127.0.0.1:5000/users", { name, email })  // Send POST request to add user
-      .then(response => setUsers([...users, response.data]))  // Update state with the new user
-      .catch(error => console.error("Error adding user:", error));  // Handle errors
+  const toggleExpand = (semester) => {
+    setExpanded((prev) => ({
+      ...prev,
+      [semester]: !prev[semester],
+    }));
   };
 
   return (
-    <div>
-      <h1>Flask + React + MySQL</h1>
+    <div className="container">
+      <div className="degree-requirements">
+        <h2 className="text-xl font-semibold mb-4">Degree Requirements</h2>
+        <p className="text-gray-600">TODO:</p>
+      </div>
 
-      {/* Form to Add a New User */}
-      <h2>Add User</h2>
-      <input
-        type="text"
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}  // Update name state on input change
-      />
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}  // Update email state on input change
-      />
-      <button onClick={addUser}>Add User</button>  {/* Call addUser() when button is clicked */}
-
-      {/* Display List of Users */}
-      <h2>Users List</h2>
-      <ul>
-        {users.map(user => (
-          <li key={user.id}>{user.name} ({user.email})</li>  // Render each user in a list
-        ))}
-      </ul>
+      <div className="semesters">
+        <h2 className="text-xl font-semibold mb-4">Semesters</h2>
+        <div>
+          {["Spring 2025", "Fall 2025", "Spring 2026", "Fall 2026"].map(
+            (semester, index) => (
+              <div key={index} className="semester-item">
+                <div
+                  className="semester-title"
+                  onClick={() => toggleExpand(semester)}
+                >
+                  {semester}
+                </div>
+                {expanded[semester] && (
+                  <div className="courses">
+                    <div className="course-box">CMSC 201</div>
+                    <div className="course-box">CMSC 202</div>
+                    <div className="course-box">CMSC 203</div>
+                    <div className="course-box">CMSC 341</div>
+                  </div>
+                )}
+              </div>
+            )
+          )}
+        </div>
+        <button className="add-semester-btn">Add Semester</button>
+      </div>
     </div>
   );
 }
 
-export default App;  // Export component so it can be used in index.js
+export default App;
