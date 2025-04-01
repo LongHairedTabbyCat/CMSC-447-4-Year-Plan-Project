@@ -1,27 +1,6 @@
 @echo off
 SETLOCAL ENABLEDELAYEDEXPANSION
 
-:: Step 1: Check if Python is Installed
-where python >nul 2>nul
-IF %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Python is not installed. Please install Python first.
-    exit /b
-)
-
-:: Step 2: Check if Node.js is Installed
-where node >nul 2>nul
-IF %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Node.js is not installed. Please install Node.js first.
-    exit /b
-)
-
-:: Step 3: Check if MySQL is Installed
-where mysql >nul 2>nul
-IF %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] MySQL is not installed. Please install MySQL first.
-    exit /b
-)
-
 :: Step 4: Create Database if it doesn't exist
 echo [INFO] Setting up MySQL database...
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS project_db;"

@@ -3,6 +3,7 @@ import "./App.css";
 
 function App() {
   const [expanded, setExpanded] = useState({});
+  const [keyword, setKeyword] = useState("");
 
   const toggleExpand = (semester) => {
     setExpanded((prev) => ({
@@ -11,11 +12,66 @@ function App() {
     }));
   };
 
+  const handleSearch = (type) => {
+    alert(`Searching by: ${type}`);
+    console.log("Search type:", type);
+  };
+
   return (
     <div className="container">
-      <div className="degree-requirements">
-        <h2 className="text-xl font-semibold mb-4">Degree Requirements</h2>
-        <p className="text-gray-600">TODO:</p>
+      <div className="left-panel">
+        <div className="degree-requirements">
+          <h2 className="text-xl font-semibold mb-4">Degree Requirements</h2>
+          <p className="text-gray-600">TODO:</p>
+        </div>
+        <div className="search-section">
+          <h2 className="search-title">Class Search</h2>
+          <div className="keyword-search">
+            <input
+              type="text"
+              placeholder="Search by keyword..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="keyword-input"
+            />
+          </div>
+          <div className="search-grid">
+            <select className="search-dropdown" onChange={(e) => handleSearch('category')}>
+              <option value="">Category</option>
+              <option value="option1">Option 1</option>
+              <option value="option2">Option 2</option>
+            </select>
+            <select className="search-dropdown" onChange={(e) => handleSearch('credits')}>
+              <option value="">Credits</option>
+              <option value="1">1 Credit</option>
+              <option value="2">2 Credits</option>
+              <option value="3">3 Credits</option>
+              <option value="4">4 Credits</option>
+            </select>
+            <select className="search-dropdown" onChange={(e) => handleSearch('courseNumber')}>
+              <option value="">Course Number</option>
+              <option value="100">100 Level</option>
+              <option value="200">200 Level</option>
+              <option value="300">300 Level</option>
+              <option value="400">400 Level</option>
+            </select>
+            <select className="search-dropdown" onChange={(e) => handleSearch('semester')}>
+              <option value="">Semester</option>
+              <option value="fall">Fall</option>
+              <option value="spring">Spring</option>
+            </select>
+            <select className="search-dropdown" onChange={(e) => handleSearch('courseAttribute')}>
+              <option value="">Course Attribute</option>
+              <option value="attr1">Attribute 1</option>
+              <option value="attr2">Attribute 2</option>
+            </select>
+            <select className="search-dropdown" onChange={(e) => handleSearch('attributeValue')}>
+              <option value="">Course Attribute Value</option>
+              <option value="val1">Value 1</option>
+              <option value="val2">Value 2</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="semesters">
