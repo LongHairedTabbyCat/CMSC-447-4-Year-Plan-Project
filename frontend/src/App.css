@@ -130,14 +130,14 @@
   background-color: #d0d0d0;
 }
 
-.search-grid {
+.filters {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin-top: 10px;
 }
 
-.search-dropdown {
+.filter-dropdown {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;

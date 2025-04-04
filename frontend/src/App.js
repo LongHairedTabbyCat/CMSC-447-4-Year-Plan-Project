@@ -1,10 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [keyword, setKeyword] = useState("");
   const [selectedDegree, setSelectedDegree] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [creditsFilter, setCreditsFilter] = useState("");
+  const [courseNumberFilter, setCourseNumberFilter] = useState("");
+  const [semesterFilter, setSemesterFilter] = useState("");
+  const [attributeFilter, setAttributeFilter] = useState("");
+  const [attributeValueFilter, setAttributeValueFilter] = useState("");
   const [semesters, setSemesters] = useState({
     "Spring 2025": [],
     "Fall 2025": [],
@@ -13,15 +18,16 @@ function App() {
   });
 
   const allCourses = [
-    "Linear Algebra",
-    "Physics",
-    "Computer Science II",
-    "Biology I",
-    "Data Structures",
-    "Machine Learning",
-    "Artificial Intelligence",
-    "Software Engineering",
-    "Principles of Computer Security",
+    { name: "First Year Seminar", category: "FYS - First Year Seminar", credits: 3, courseNumber: 100, semester: "Spring", attribute: "First Year Experience", attributeValue: "" },
+    { name: "Linear Algebra", category: "MATH - Mathematics", credits: 3, courseNumber: 100, semester: "Fall", attribute: "General Education Program", attributeValue: "Mathematics" },
+    { name: "Physics", category: "PHYS - Physics", credits: 3, courseNumber: 200, semester: "Spring", attribute: "General Education Program", attributeValue: "Science Plus Lab" },
+    { name: "Computer Science II", category: "CMSC - Computer Science", credits: 3, courseNumber: 200, semester: "Fall", attribute: "", attributeValue: "" },
+    { name: "Biology I", category: "BIOL - Biology", credits: 4, courseNumber: 100, semester: "Spring", attribute: "General Education Program", attributeValue: "Science Plus Lab" },
+    { name: "Data Structures", category: "CMSC - Computer Science", credits: 3, courseNumber: 300, semester: "Fall", attribute: "", attributeValue: "" },
+    { name: "Machine Learning", category: "CMSC - Computer Science", credits: 4, courseNumber: 400, semester: "Spring", attribute: "", attributeValue: "" },
+    { name: "Artificial Intelligence", category: "CMSC - Computer Science", credits: 3, courseNumber: 400, semester: "Fall", attribute: "", attributeValue: "" },
+    { name: "Software Engineering", category: "CMSC - Computer Science", credits: 3, courseNumber: 400, semester: "Spring", attribute: "", attributeValue: "" },
+    { name: "Principles of Computer Security", category: "CMSC - Computer Science", credits: 3, courseNumber: 400, semester: "Spring", attribute: "", attributeValue: "" },
   ];
 
   const degreeRequirements = {
@@ -58,6 +64,7 @@ function App() {
     ],
   };
 
+
   const handleDragStart = (event, course, fromSemester = null) => {
     event.dataTransfer.setData(
       "text/plain",
@@ -76,40 +83,70 @@ function App() {
 
       if (fromSemester && fromSemester !== targetSemester) {
         updatedSemesters[fromSemester] = updatedSemesters[fromSemester].filter(
-          (c) => c !== course
+          (c) => c.name !== course.name
         );
       }
 
-      if (!updatedSemesters[targetSemester].includes(course)) {
+      const courseExists = updatedSemesters[targetSemester].some(
+          (existingCourse) => existingCourse.name === course.name
+      );
+
+      if (!courseExists) {
         updatedSemesters[targetSemester] = [
           ...updatedSemesters[targetSemester],
           course,
         ];
       }
 
+
       return updatedSemesters;
     });
   };
+
 
   const handleDragOver = (event) => {
     event.preventDefault();
   };
 
-  const removeCourse = (semester, course) => {
+  const removeCourse = (semester, courseToRemove) => {
     setSemesters((prev) => ({
       ...prev,
-      [semester]: prev[semester].filter((c) => c !== course),
+      [semester]: prev[semester].filter((c) => c.name !== courseToRemove.name),
     }));
   };
 
-  const filteredCourses = allCourses.filter((course) =>
-    course.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSearch = (type) => {
-    alert(`Searching by: ${type}`);
-    console.log("Search type:", type);
+  const anyFilterApplied = () => {
+    return (
+      searchTerm.trim() !== "" ||
+      categoryFilter !== "" ||
+      creditsFilter !== "" ||
+      courseNumberFilter !== "" ||
+      semesterFilter !== "" ||
+      attributeFilter !== "" ||
+      attributeValueFilter !== ""
+    );
   };
+
+
+  const filteredCourses = allCourses.filter((course) => {
+    const categoryMatch = categoryFilter === "" || course.category === categoryFilter;
+    const creditsMatch = creditsFilter === "" || course.credits === creditsFilter;
+    const courseNumberMatch = courseNumberFilter === "" || course.courseNumber.toString().startsWith(courseNumberFilter);
+    const semesterMatch = semesterFilter === "" || course.semester === semesterFilter;
+    const attributeMatch = attributeFilter === "" || course.attribute === attributeFilter;
+    const attributeValueMatch = attributeValueFilter === "" || course.attributeValue === attributeValueFilter;
+    const searchTermMatch = searchTerm.trim() === "" || course.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return (
+      categoryMatch &&
+      creditsMatch &&
+      courseNumberMatch &&
+      semesterMatch &&
+      attributeMatch &&
+      attributeValueMatch &&
+      searchTermMatch
+    );
+  });
 
   return (
     <div className="container">
@@ -149,45 +186,84 @@ function App() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <div className="search-grid">
-            <select className="search-dropdown" onChange={() => handleSearch('category')}>
+          <div className="filters">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="filter-dropdown"
+            >
               <option value="">Category</option>
-              <option value="option1">Option 1</option>
-              <option value="option2">Option 2</option>
+              <option value="FYS - First Year Seminar">FYS - First Year Seminar</option>
+              <option value="MATH - Mathematics">MATH - Mathematics</option>
+              <option value="PHYS - Physics">PHYS - Physics</option>
+              <option value="BIOL - Biology">BIOL - Biology</option>
+              <option value="CMSC - Computer Science">CMSC - Computer Science</option>
             </select>
-            <select className="search-dropdown" onChange={() => handleSearch('credits')}>
+
+            <select
+              value={creditsFilter}
+              onChange={(e) => {
+                  const value = e.target.value;
+                  setCreditsFilter(value === "" ? "" : parseInt(value, 10));
+              }}
+              className="filter-dropdown"
+            >
               <option value="">Credits</option>
-              <option value="1">1 Credit</option>
-              <option value="2">2 Credits</option>
               <option value="3">3 Credits</option>
               <option value="4">4 Credits</option>
             </select>
-            <select className="search-dropdown" onChange={() => handleSearch('courseNumber')}>
+
+            <select
+              value={courseNumberFilter}
+              onChange={(e) => setCourseNumberFilter(e.target.value)}
+              className="filter-dropdown"
+            >
               <option value="">Course Number</option>
-              <option value="100">100 Level</option>
-              <option value="200">200 Level</option>
-              <option value="300">300 Level</option>
-              <option value="400">400 Level</option>
+              <option value="1">1xx</option>
+              <option value="2">2xx</option>
+              <option value="3">3xx</option>
+              <option value="4">4xx</option>
             </select>
-            <select className="search-dropdown" onChange={() => handleSearch('semester')}>
+
+            <select
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value)}
+              className="filter-dropdown"
+            >
               <option value="">Semester</option>
-              <option value="fall">Fall</option>
-              <option value="spring">Spring</option>
+              <option value="Fall">Fall</option>
+              <option value="Spring">Spring</option>
             </select>
-            <select className="search-dropdown" onChange={() => handleSearch('courseAttribute')}>
-              <option value="">Course Attribute</option>
-              <option value="attr1">Attribute 1</option>
-              <option value="attr2">Attribute 2</option>
+
+            <select
+              value={attributeFilter}
+              onChange={(e) => setAttributeFilter(e.target.value)}
+              className="filter-dropdown"
+            >
+              <option value="">Attribute</option>
+              <option value="First Year Experience">First Year Experience</option>
+              <option value="General Education Program">General Education Program</option>
             </select>
-            <select className="search-dropdown" onChange={() => handleSearch('attributeValue')}>
-              <option value="">Course Attribute Value</option>
-              <option value="val1">Value 1</option>
-              <option value="val2">Value 2</option>
+
+             <select
+                value={attributeValueFilter}
+                onChange={(e) => setAttributeValueFilter(e.target.value)}
+                className="filter-dropdown"
+                disabled={attributeFilter === "" || attributeFilter === "NONE"}
+            >
+                <option value="">Attribute Value</option>
+                {attributeFilter === "General Education Program" && (
+                    <>
+                        <option value="Mathematics">Mathematics</option>
+                        <option value="Science Plus Lab">Science Plus Lab</option>
+                    </>
+                )}
             </select>
+
           </div>
 
           <div className="search-results">
-            {searchTerm &&
+            {anyFilterApplied() &&
               filteredCourses.map((course, index) => (
                 <div
                   key={index}
@@ -195,18 +271,21 @@ function App() {
                   draggable
                   onDragStart={(event) => handleDragStart(event, course)}
                 >
-                  {course}
+                  <strong>{course.name}</strong>
                 </div>
               ))}
+            {anyFilterApplied() && filteredCourses.length === 0 && (
+                 <p>No courses match the selected filters.</p>
+            )}
           </div>
         </div>
       </div>
 
       <div className="semesters">
         <h2>Semesters</h2>
-        {Object.keys(semesters).map((semester, index) => (
+        {Object.keys(semesters).map((semester) => (
           <div
-            key={index}
+            key={semester}
             className="semester-item"
             onDragOver={handleDragOver}
             onDrop={(event) => handleDrop(event, semester)}
@@ -215,14 +294,14 @@ function App() {
             <div className="courses">
               {semesters[semester].map((course, idx) => (
                 <div
-                  key={idx}
+                  key={`${semester}-${course.name}-${idx}`}
                   className="course-box"
                   draggable
                   onDragStart={(event) =>
                     handleDragStart(event, course, semester)
                   }
                 >
-                  {course}
+                  <strong>{course.name}</strong>
                   <button
                     className="remove-btn"
                     onClick={() => removeCourse(semester, course)}
