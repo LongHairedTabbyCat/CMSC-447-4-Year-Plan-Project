@@ -1,14 +1,17 @@
-/* App.css */
-
-/* General layout */
 .container {
   display: flex;
   height: 100vh;
   padding: 20px;
 }
 
-.degree-requirements {
+.left-column {
   width: 33%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.degree-requirements {
   background-color: #f0f0f0;
   padding: 20px;
   border-radius: 12px;
@@ -29,6 +32,7 @@
   background-color: #e0e0e0;
   border-radius: 8px;
   margin-bottom: 10px;
+  min-height: 60px;
 }
 
 .semester-title {
@@ -38,7 +42,6 @@
 
 .courses {
   margin-top: 10px;
-  margin-left: 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -46,23 +49,110 @@
 
 .course-box {
   padding: 10px;
-  background-color: #a3a3a3;
+  background-color: #e0e0e0;
   border-radius: 8px;
   font-size: 14px;
-  color: #000000;
+  color: #4b4b4b;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.add-semester-btn {
-  margin-top: 20px;
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
+.remove-btn {
+  background: none;
   border: none;
-  border-radius: 8px;
+  color: red;
   cursor: pointer;
+  font-size: 16px;
+  margin-left: 10px;
 }
 
-.add-semester-btn:hover {
-  background-color: #0056b3;
+.remove-btn:hover {
+  color: darkred;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 10px;
+  box-sizing: border-box;
+}
+
+.degree-dropdown {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+  background-color: white;
+}
+
+.course-search {
+  background-color: #f0f0f0;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.search-results {
+  width: 100%;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-item {
+  padding: 8px;
+  background-color: #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4b4b4b;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: grab;
+  text-align: center;
+}
+
+.result-item:active {
+  opacity: 0.5;
+}
+
+.semester-item:hover {
+  background-color: #d0d0d0;
+}
+
+.search-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.search-dropdown {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.search-dropdown:hover {
+  border-color: #007bff;
+}
+
+.search-dropdown:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
