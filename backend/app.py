@@ -25,15 +25,28 @@ db = SQLAlchemy(app)
 
 # -------------------- Database Model --------------------
 
-# Define a User model (represents a table in the database)
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)  # Primary key, auto-incremented
-    name = db.Column(db.String(100), nullable=False)  # User's name (String, required)
-    email = db.Column(db.String(100), unique=True, nullable=False)  # User's email (must be unique, required)
+# Define a Course model (represents the 'courses' table in the database)
+class Course(db.Model):
+    __tablename__ = 'courses' # Explicitly define table name
+    course_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    course_name = db.Column(db.String(255), nullable=True)
+    catalogname = db.Column(db.String(255), nullable=False)
+    category = db.Column(db.String(255), nullable=True)
+    course_num = db.Column(db.Integer, nullable=True)
+    course_desc = db.Column(db.Text, nullable=True) # Use db.Text for TEXT SQL type
+    course_credits = db.Column(db.Integer, nullable=True)
 
     # Convert the object to a dictionary (useful for JSON responses)
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "email": self.email}
+        return {
+            "course_id": self.course_id,
+            "course_name": self.course_name,
+            "catalog_name": self.catalogname, # Use snake_case for consistency in JSON keys
+            "category": self.category,
+            "course_num": self.course_num,
+            "course_desc": self.course_desc,
+            "course_credits": self.course_credits
+        }
 
 # Create database tables if they don’t exist
 with app.app_context():
@@ -41,20 +54,18 @@ with app.app_context():
 
 # -------------------- API Routes --------------------
 
-# Endpoint to GET all users from the database
-@app.route('/users', methods=['GET'])
-def get_users():
-    users = User.query.all()  # Retrieve all user records
-    return jsonify([user.to_dict() for user in users])  # Return a list of users as JSON
-
-# Endpoint to POST (add) a new user
-@app.route('/users', methods=['POST'])
-def add_user():
-    data = request.json  # Get JSON data sent by the frontend
-    new_user = User(name=data['name'], email=data['email'])  # Create a new User object
-    db.session.add(new_user)  # Add the new user to the session
-    db.session.commit()  # Commit changes to the database
-    return jsonify(new_user.to_dict()), 201  # Return the new user as JSON with HTTP status 201 (Created)
+# Endpoint to GET all courses from the database
+@app.route('/courses', methods=['GET'])
+def get_courses():
+    try:
+        courses = Course.query.all() # Retrieve all course records
+        # Convert each Course object to a dictionary using the to_dict method
+        courses_list = [course.to_dict() for course in courses]
+        return jsonify(courses_list) # Return the list of courses as JSON
+    except Exception as e:
+        # Log the error for debugging purposes (optional but recommended)
+        # app.logger.error(f"Error fetching courses: {e}")
+        return jsonify({"error": "Failed to retrieve courses", "details": str(e)}), 500
 
 # -------------------- Run the Flask App --------------------
 

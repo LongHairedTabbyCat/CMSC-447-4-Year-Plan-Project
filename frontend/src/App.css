@@ -156,3 +156,108 @@
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
+
+/* Below is the CSS associated with the prerequisite checking. */
+
+.course-box.conflict {
+  background-color: #ffdddd;
+  border: 1px solid #cc0000;
+  color: #8b0000;
+}
+
+.course-box.conflict .remove-btn {
+    color: #cc0000;
+}
+
+.course-box.conflict .remove-btn:hover {
+    color: #8b0000;
+}
+
+.course-box.conflict:hover {
+    cursor: help;
+}
+
+.semester-title {
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+/* Below is the CSS associated with the Degree Requirements updates. */
+
+.degree-accordion {
+  margin-top: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.requirement-category {
+  border-bottom: 1px solid #ccc;
+}
+.requirement-category:last-child {
+  border-bottom: none;
+}
+
+.category-header {
+  background-color: #f7f7f7;
+  padding: 10px 15px;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  font-size: 1em;
+  color: #333;
+}
+
+.category-header:hover {
+  background-color: #eee;
+}
+
+.category-header span:first-child {
+    margin-right: 10px;
+}
+
+.toggle-icon {
+  font-size: 0.8em;
+  font-weight: normal;
+  transition: transform 0.2s ease-in-out;
+}
+
+.category-content {
+  padding: 15px;
+  background-color: #fff;
+  border-top: 1px solid #eee;
+}
+
+.category-content ul {
+  margin-top: 5px;
+  margin-bottom: 10px;
+  padding-left: 20px;
+}
+
+.category-content li {
+  margin-bottom: 5px;
+}
+
+.category-content p {
+    margin-bottom: 10px;
+}
+
+.sequence-option {
+  margin-bottom: 10px;
+  padding-left: 10px;
+  border-left: 2px solid #eee;
+}
+
+.technical-electives-details p,
+.technical-electives-details ul {
+    margin-bottom: 8px;
+}
+.technical-electives-details > p:first-child {
+    font-style: italic;
+}
