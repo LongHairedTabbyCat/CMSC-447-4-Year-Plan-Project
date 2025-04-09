@@ -195,4 +195,4 @@ def check_prerequisites():
 # -------------------- Run the Flask App --------------------
 
 if __name__ == '__main__':
-    app.run(debug=True)  # Run the app in debug mode (useful for development)
+    app.run(debug=False)  # Run the app in debug mode (useful for development)
