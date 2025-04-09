@@ -35,7 +35,6 @@ class Course(db.Model):
     course_num = db.Column(db.Integer, nullable=True)
     course_desc = db.Column(db.Text, nullable=True) # Use db.Text for TEXT SQL type
     course_credits = db.Column(db.Integer, nullable=True)
-    prerequisite_stmt = db.Column(db.Text)
 
     # Convert the object to a dictionary (useful for JSON responses)
     def to_dict(self):
@@ -46,38 +45,64 @@ class Course(db.Model):
             "category": self.category,
             "course_num": self.course_num,
             "course_desc": self.course_desc,
-            "course_credits": self.course_credits,
-            "prerequisite_stmt": self.prerequisite_stmt
+            "course_credits": self.course_credits
         }
 
 # Database models for course prerequisites
-# Create the AndGroupPrereq model for course
-class AndGroupPrereq(db.Model):
-    __tablename__ = 'and_group_prereq'
-    and_group_id = db.Column(db.Integer, primary_key=True)
+
+# Create the AndPrereq model for course. It doesn't only store prerequisites where there are two or more requirements, it stores any prerequisite that’s part of an AND-type requirement, even if there’s only one.
+class AndPrereq(db.Model):
+    __tablename__ = 'and_prereq'
+
+    # Use both course_id and required_rereq_id as primary key to prevent duplicate entries because of the many-to many relationship between courses and their prerequisites
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+    required_prereq_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+
+    # Convert model instance into a dictionary avoid rewriting the same dictionary logic again
+    def to_dict(self):
+        return {
+            "course_id": self.course_id,
+            "required_prereq_id": self.required_prereq_id
+        }
+
+# Create the OrPrereq model for course.
+class OrPrereq(db.Model):
+    __tablename__ = 'or_prereq'
+
+    or_group_id = db.Column(db.Integer, primary_key=True, autoincrement=True) # autoincrement uniquely identify each group of OR prerequisites, added base on db
     course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'))
+
+    def to_dict(self):
+        return {
+            "or_group_id": self.or_group_id,
+            "course_id": self.course_id
+        }
+
+# Create the OrGroupPrereq model for course.
+class OrGroupPrereq(db.Model):
+    __tablename__ = 'or_group_prereq'
+
+    or_group_id = db.Column(db.Integer, db.ForeignKey('or_prereq.or_group_id'), primary_key=True)
     prerequisite_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
 
     def to_dict(self):
         return {
-            "course_id": self.course_id,
-            "and_group_id": self.and_group_id,
+            "or_group_id": self.or_group_id,
             "prerequisite_id": self.prerequisite_id
         }
 
-# Create the ConcurrentPrereq model for course
-class ConcurrentPrereq(db.Model):
-    __tablename__ = 'concurrent_prereq'
+# Create the AndGroupPrereq model for course.
+class AndGroupPrereq(db.Model):
+    __tablename__ = 'and_group_prereq'
 
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
-    concurrent_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+    and_group_id = db.Column(db.Integer, db.ForeignKey('or_prereq.or_group_id'), primary_key=True)
+    prerequisite_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
 
     def to_dict(self):
         return {
-            "course_id": self.course_id,
-            "concurrent_id": self.concurrent_id
+            "and_group_id": self.and_group_id,
+            "prerequisite_id": self.prerequisite_id
         }
-
 
 # Create database tables if they don’t exist
 with app.app_context():
@@ -95,102 +120,57 @@ def get_courses():
         return jsonify(courses_list) # Return the list of courses as JSON
     except Exception as e:
         # Log the error for debugging purposes (optional but recommended)
-        app.logger.error(f"Error fetching courses: {e}")
+        # app.logger.error(f"Error fetching courses: {e}")
         return jsonify({"error": "Failed to retrieve courses", "details": str(e)}), 500
 
-# Endpoint to test AndGroupPrereq model. Use Postman GET Method with URL:http://localhost:5000/test/and-group-prereqs
+# Endpoint to test AndPrereq model. Use Postman GET Method with URL:http://localhost:5000/test/and-prereqs
+@app.route('/test/and-prereqs', methods=['GET'])
+def get_and_prereqs():
+    prereqs = AndPrereq.query.all()
+    ## Manually construct a list of dictionary
+    # result = [
+    #     {
+    #         "course_id": p.course_id,
+    #         "required_prereq_id": p.required_prereq_id
+    #     }
+    #     for p in prereqs
+    # ]
+
+    #return jsonify(result)
+    # Calling the helper method using .to_dict() for the test result format
+    result = [p.to_dict() for p in prereqs]
+    return jsonify(result)
+
+# Endpoint to test OrPrereq model, use Postman GET Method with URL:http://localhost:5000/test/or-prereqs
+@app.route('/test/or-prereqs', methods=['GET'])
+def get_or_prereqs():
+    prereqs = OrPrereq.query.all()
+    result = [p.to_dict() for p in prereqs]
+    return jsonify(result)
+
+# Endpoint to test OrGroupPrereq model, use Postman GET Method with URL:http://localhost:5000/test/or-group-prereqs
+@app.route('/test/or-group-prereqs', methods=['GET'])
+def get_or_group_prereqs():
+    prereqs = OrGroupPrereq.query.all()
+    result = [entry.to_dict() for entry in prereqs]
+    return jsonify(result)
+
+# Endpoint to test AndGroupPrereq model, use Postman GET Method with URL:http://localhost:5000/test/and-group-prereqs
 @app.route('/test/and-group-prereqs', methods=['GET'])
-def test_and_group_prereqs():
-    results = AndGroupPrereq.query.all()
-    return jsonify([row.to_dict() for row in results])
+def get_and_group_prereqs():
+    prereqs = AndGroupPrereq.query.all()
+    result = [entry.to_dict() for entry in prereqs]
+    return jsonify(result) # Returned empty result due to empty database for this table
 
-# Endpoint to test ConcurrentPrereq model. Use Postman GET Method with URL:http://localhost:5000/test/concurrent-prereqs
-@app.route('/test/concurrent-prereqs', methods=['GET'])
-def test_concurrent_prereqs():
-    results = ConcurrentPrereq.query.all()
-    return jsonify([row.to_dict() for row in results])
+# Endpoint for testing purpose
+@app.route('/test', methods=['GET'])
+def test():
+    # session = db.session
+    # stmt = select(Course).where(Course.course_id.in_([1, 2]))
+    # wantedCourses = session.scalars(stmt).all()
 
-# Endpoint to check the prerequisites, use Postman POST Method with URL:http://localhost:5000/plan/check-prerequisites
-# use for POST testing (also expected returned HTTP from frontend like this):
-# {
-#   "semesters": [
-#     { "name": "Spring 2025", "courses": [60, 46] },
-#     { "name": "Fall 2025", "courses": [24] },
-#     { "name": "Spring 2026", "courses": [23, 1, 25] },
-#     { "name": "Fall 2026", "courses": [49, 3, 34] }, // 3 is the corequisite of 49
-#     { "name": "Spring 2027", "courses": [26, 35, 4] }
-#   ]
-# }
-@app.route('/plan/check-prerequisites', methods=['POST'])
-def check_prerequisites():
-    data = request.get_json()
-    semesters = data.get("semesters")
-
-    if not semesters:
-        return jsonify({"error": "Missing semester data"}), 400
-
-    # Track all missing prerequisites and messages
-    missing_prereqs = []
-    messages = []
-
-    for target_index, semester in enumerate(semesters):
-        current_courses = semester.get("courses", [])
-
-        # Get planned courses before this semester
-        planned_courses = []
-        for s in semesters[:target_index]:
-            planned_courses.extend(s.get("courses", []))
-
-        for course_id in current_courses:
-            course = Course.query.get(course_id)
-            if not course:
-                continue
-
-            # Check AND prerequisites
-            and_prereqs = AndGroupPrereq.query.filter_by(course_id=course_id).all()
-            group_map = {}
-            for prereq in and_prereqs:
-                group_map.setdefault(prereq.and_group_id, []).append(prereq.prerequisite_id)
-
-            for group_id, prereq_ids in group_map.items():
-                if not all(pid in planned_courses for pid in prereq_ids):
-                    # Missing at least one prerequisite from this group
-                    if not any(p["course_id"] == course_id for p in missing_prereqs):
-                        missing_prereqs.append({
-                            "course": course.catalogname,
-                            "course_id": course_id,
-                            "message": f"To take {course.catalogname}, you must complete the following prerequisites: {course.prerequisite_stmt}"
-                        })
-
-    # Gather all current semester courses by name for lookup
-    semester_course_lookup = {s["name"]: set(s.get("courses", [])) for s in semesters}
-
-    # Filter out missing prerequisites if satisfied via concurrent enrollment
-    final_missing = []
-    for entry in missing_prereqs:
-        course_id = entry["course_id"]
-        # Find the semester this course is planned in
-        planned_sem = next((s for s in semesters if course_id in s.get("courses", [])), None)
-        if not planned_sem:
-            final_missing.append(entry)
-            continue
-
-        concurrent_courses = semester_course_lookup.get(planned_sem["name"], set())
-        concurrents = ConcurrentPrereq.query.filter_by(course_id=course_id).all()
-        concurrent_ids = [c.concurrent_id for c in concurrents]
-
-        # If any concurrent prereq is in the same semester, skip this missing prereq
-        if any(cid in concurrent_courses for cid in concurrent_ids):
-            continue
-        final_missing.append(entry)
-
-    # Rebuild messages from filtered list
-    final_messages = [entry["message"] for entry in final_missing]
-
-    return jsonify({
-        "missing_prerequisites": final_missing,
-        "messages": final_messages
-    })
+    wantedCourses = Course.query.where(Course.course_id.in_([1, 2])).all()
+    return "1"
 
 # -------------------- Run the Flask App --------------------
 
