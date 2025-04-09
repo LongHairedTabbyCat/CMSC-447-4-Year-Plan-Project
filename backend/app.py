@@ -67,7 +67,16 @@ def get_courses():
         # app.logger.error(f"Error fetching courses: {e}")
         return jsonify({"error": "Failed to retrieve courses", "details": str(e)}), 500
 
+# Endpoint for testing purpose
+@app.route('/test', methods=['GET'])
+def test():
+    # session = db.session
+    # stmt = select(Course).where(Course.course_id.in_([1, 2]))
+    # wantedCourses = session.scalars(stmt).all()
+
+    wantedCourses = Course.query.where(Course.course_id.in_([1, 2])).all()
+    return "1"
 # -------------------- Run the Flask App --------------------
 
 if __name__ == '__main__':
-    app.run(debug=True)  # Run the app in debug mode (useful for development)
+    app.run(debug=False)  # Run the app in debug mode (useful for development)
