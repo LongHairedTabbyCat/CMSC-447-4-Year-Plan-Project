@@ -104,6 +104,21 @@ class AndGroupPrereq(db.Model):
             "prerequisite_id": self.prerequisite_id
         }
 
+# Define the plan model
+class Plan(db.Model):
+    __tablename__ = 'plan'
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), nullable=False)
+    semester = db.Column(db.String(50), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'course_id': self.course_id,
+            'semester': self.semester
+        }
+
+
 # Create database tables if they don’t exist
 with app.app_context():
     db.create_all()
@@ -161,6 +176,118 @@ def get_and_group_prereqs():
     prereqs = AndGroupPrereq.query.all()
     result = [entry.to_dict() for entry in prereqs]
     return jsonify(result) # Returned empty result due to empty database for this table
+
+# Endpoint to check the prerequisites, use Postman POST Method with URL:http://localhost:5000/plan/check-prerequisites
+# use for POST testing (also expected returned HTTP from frontend like this):
+# {
+#   "course_id": 6,
+#   "target_semester": "Spring 2026",
+#   "semesters": [
+#     { "name": "Spring 2025", "courses": [1] },
+#     { "name": "Fall 2025", "courses": [2] },
+#     { "name": "Spring 2026", "courses": [3] }, // target semester
+#     { "name": "Fall 2026", "courses": [10,23] }
+#   ]
+# }
+@app.route('/plan/check-prerequisites', methods=['POST'])
+def check_prerequisites():
+    # Get JSON data from the frontend request
+    data = request.get_json()
+    course_id = data.get('course_id')
+    target_semester = data.get('target_semester')
+    semesters = data.get('semesters')
+
+    if not course_id or not target_semester or not semesters:
+        return jsonify({'error': 'Missing required data'}), 400
+
+    # Build semester order to find the index of the target semester
+    semester_names = [s['name'] for s in semesters]
+
+    if target_semester not in semester_names:
+        return jsonify({'error': 'Target semester not found in provided semesters'}), 400
+
+    target_index = semester_names.index(target_semester)
+
+    # Collect all courses planned in semesters before the target semester
+    planned_ids = []
+    for sem in semesters[:target_index]:
+        planned_ids.extend(sem.get('courses', []))
+
+    # Container for structured missing prerequisites
+    missing_groups = []
+
+    # Check AND prerequisites — all must be completed before this course
+    and_reqs = AndPrereq.query.filter_by(course_id=course_id).all()
+    and_missing = []
+
+    for req in and_reqs:
+        # If a required prerequisite is not in planned courses, add it to missing list
+        if req.required_prereq_id not in planned_ids:
+            course = Course.query.get(req.required_prereq_id)
+            if course:
+                and_missing.append(course.to_dict())
+
+    if and_missing:
+        course_labels = [f'{c["category"]} {c["course_num"]}' for c in and_missing]
+        message = "You must complete all of the following courses before taking this one: " + ", ".join(
+            course_labels) + "."
+        missing_groups.append({
+            "type": "AND",
+            "courses": and_missing,
+            "message": message
+        })
+
+    # Check OR prerequisites — at least one course from the group must be completed
+    or_groups = OrPrereq.query.filter_by(course_id=course_id).all()
+    for group in or_groups:
+        group_courses = OrGroupPrereq.query.filter_by(or_group_id=group.or_group_id).all()
+        group_missing = []
+
+        # If none of the group's prerequisites are in planned courses
+        if not any(p.prerequisite_id in planned_ids for p in group_courses):
+            for p in group_courses:
+                course = Course.query.get(p.prerequisite_id)
+                if course:
+                    group_missing.append(course.to_dict())
+
+        if group_missing:
+            course_labels = [f'{c["category"]} {c["course_num"]}' for c in group_missing]
+            message = "You must complete at least one of the following courses: " + ", ".join(course_labels) + "."
+            missing_groups.append({
+                "type": "OR",
+                "courses": group_missing,
+                "message": message
+            })
+
+    # Check AND group prerequisites — all must be completed from the group
+    and_groups = AndGroupPrereq.query.filter(AndGroupPrereq.and_group_id.in_(
+        [g.or_group_id for g in or_groups]
+    )).all()
+
+    grouped = {}
+    for row in and_groups:
+        grouped.setdefault(row.and_group_id, []).append(row)
+
+    for group_id, prereqs in grouped.items():
+        group_missing = []
+        for p in prereqs:
+            if p.prerequisite_id not in planned_ids:
+                course = Course.query.get(p.prerequisite_id)
+                if course:
+                    group_missing.append(course.to_dict())
+
+        if group_missing:
+            course_labels = [f'{c["category"]} {c["course_num"]}' for c in group_missing]
+            message = "You must complete all of the following prerequisite courses in this group: " + ", ".join(
+                course_labels) + "."
+            missing_groups.append({
+                "type": "AND_GROUP",
+                "courses": group_missing,
+                "message": message
+            })
+
+    # Return all missing prerequisite groups
+    return jsonify({"missing_prerequisites": missing_groups})
 
 # Endpoint for testing purpose
 @app.route('/test', methods=['GET'])
