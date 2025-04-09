@@ -48,6 +48,62 @@ class Course(db.Model):
             "course_credits": self.course_credits
         }
 
+# Database models for course prerequisites
+
+# Create the AndPrereq model for course. It doesn't only store prerequisites where there are two or more requirements, it stores any prerequisite that’s part of an AND-type requirement, even if there’s only one.
+class AndPrereq(db.Model):
+    __tablename__ = 'and_prereq'
+
+    # Use both course_id and required_rereq_id as primary key to prevent duplicate entries because of the many-to many relationship between courses and their prerequisites
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+    required_prereq_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+
+    # Convert model instance into a dictionary avoid rewriting the same dictionary logic again
+    def to_dict(self):
+        return {
+            "course_id": self.course_id,
+            "required_prereq_id": self.required_prereq_id
+        }
+
+# Create the OrPrereq model for course.
+class OrPrereq(db.Model):
+    __tablename__ = 'or_prereq'
+
+    or_group_id = db.Column(db.Integer, primary_key=True, autoincrement=True) # autoincrement uniquely identify each group of OR prerequisites, added base on db
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'))
+
+    def to_dict(self):
+        return {
+            "or_group_id": self.or_group_id,
+            "course_id": self.course_id
+        }
+
+# Create the OrGroupPrereq model for course.
+class OrGroupPrereq(db.Model):
+    __tablename__ = 'or_group_prereq'
+
+    or_group_id = db.Column(db.Integer, db.ForeignKey('or_prereq.or_group_id'), primary_key=True)
+    prerequisite_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+
+    def to_dict(self):
+        return {
+            "or_group_id": self.or_group_id,
+            "prerequisite_id": self.prerequisite_id
+        }
+
+# Create the AndGroupPrereq model for course.
+class AndGroupPrereq(db.Model):
+    __tablename__ = 'and_group_prereq'
+
+    and_group_id = db.Column(db.Integer, db.ForeignKey('or_prereq.or_group_id'), primary_key=True)
+    prerequisite_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'), primary_key=True)
+
+    def to_dict(self):
+        return {
+            "and_group_id": self.and_group_id,
+            "prerequisite_id": self.prerequisite_id
+        }
+
 # Create database tables if they don’t exist
 with app.app_context():
     db.create_all()
@@ -67,6 +123,45 @@ def get_courses():
         # app.logger.error(f"Error fetching courses: {e}")
         return jsonify({"error": "Failed to retrieve courses", "details": str(e)}), 500
 
+# Endpoint to test AndPrereq model. Use Postman GET Method with URL:http://localhost:5000/test/and-prereqs
+@app.route('/test/and-prereqs', methods=['GET'])
+def get_and_prereqs():
+    prereqs = AndPrereq.query.all()
+    ## Manually construct a list of dictionary
+    # result = [
+    #     {
+    #         "course_id": p.course_id,
+    #         "required_prereq_id": p.required_prereq_id
+    #     }
+    #     for p in prereqs
+    # ]
+
+    #return jsonify(result)
+    # Calling the helper method using .to_dict() for the test result format
+    result = [p.to_dict() for p in prereqs]
+    return jsonify(result)
+
+# Endpoint to test OrPrereq model, use Postman GET Method with URL:http://localhost:5000/test/or-prereqs
+@app.route('/test/or-prereqs', methods=['GET'])
+def get_or_prereqs():
+    prereqs = OrPrereq.query.all()
+    result = [p.to_dict() for p in prereqs]
+    return jsonify(result)
+
+# Endpoint to test OrGroupPrereq model, use Postman GET Method with URL:http://localhost:5000/test/or-group-prereqs
+@app.route('/test/or-group-prereqs', methods=['GET'])
+def get_or_group_prereqs():
+    prereqs = OrGroupPrereq.query.all()
+    result = [entry.to_dict() for entry in prereqs]
+    return jsonify(result)
+
+# Endpoint to test AndGroupPrereq model, use Postman GET Method with URL:http://localhost:5000/test/and-group-prereqs
+@app.route('/test/and-group-prereqs', methods=['GET'])
+def get_and_group_prereqs():
+    prereqs = AndGroupPrereq.query.all()
+    result = [entry.to_dict() for entry in prereqs]
+    return jsonify(result) # Returned empty result due to empty database for this table
+
 # Endpoint for testing purpose
 @app.route('/test', methods=['GET'])
 def test():
@@ -76,6 +171,7 @@ def test():
 
     wantedCourses = Course.query.where(Course.course_id.in_([1, 2])).all()
     return "1"
+
 # -------------------- Run the Flask App --------------------
 
 if __name__ == '__main__':
