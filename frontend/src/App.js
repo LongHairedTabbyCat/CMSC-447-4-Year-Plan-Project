@@ -1,125 +1,30 @@
-import React, { useState, useEffect } from "react"; // Removed useCallback as it wasn't used after merge
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
 const API_BASE_URL = "http://localhost:5000";
 
-// Define the order of semesters for prerequisite checking (from old branch)
-const semesterOrder = [
-  "Spring 2025",
-  "Fall 2025",
-  "Spring 2026",
-  "Fall 2026",
-];
-
-// Define prerequisite rules with types: 'strict' or 'concurrent'
-// Note: Ensure course_names here EXACTLY match those in your data.
+// Define prerequisite rules
 const prerequisiteRules = {
-    "Artificial Intelligence": [
-        // Example: AI needs CS I strictly before, but CS II can be concurrent
-        { name: "Computer Science I", type: "strict" },
-        { name: "Computer Science II", type: "concurrent" }
-    ],
-    "Computer Science II": [
-        // Example: CS II needs CS I before
-        { name: "Computer Science I", type: "strict" }
-    ],
-    "Computer Science I": [
-        // Example: Computer Science I needs Precalculus Mathematics before
-        { name: "Precalculus Mathematics", type: "strict" }
-    ],
-    "Data Structures": [
-        // Example: Data Structures allows CS II concurrently
-        { name: "Computer Science II", type: "concurrent" }
-    ],
-    "Machine Learning": [
-        // Example: ML allows Data Structures and Lin Alg concurrently
-        { name: "Data Structures", type: "concurrent" },
-        { name: "Linear Algebra", type: "concurrent" }
-    ],
-    // This is for testing purposes - will be replaced later by more complex, SQL-based logic.
+  "Artificial Intelligence": [
+    { name: "Computer Science I", type: "strict" },
+    { name: "Computer Science II", type: "concurrent" },
+  ],
+  "Computer Science II": [{ name: "Computer Science I", type: "strict" }],
+  "Computer Science I": [{ name: "Precalculus Mathematics", type: "strict" }],
+  "Data Structures": [{ name: "Computer Science II", type: "concurrent" }],
+  "Machine Learning": [
+    { name: "Data Structures", type: "concurrent" },
+    { name: "Linear Algebra", type: "concurrent" },
+  ],
 };
 
-// --- Mock Conflict Checking Logic (Distinguishes Strict vs Concurrent) ---
-
-const checkCourseConflicts = (semestersData) => {
-    console.log("Running MOCK conflict check (Strict/Concurrent) with data:", JSON.stringify(semestersData));
-    const updatedSemesters = JSON.parse(JSON.stringify(semestersData)); // Deep copy
-    const takenCoursesInPreviousSemesters = new Set();
-    let globalConflictsFound = false;
-
-    // 1. Reset conflicts first
-    semesterOrder.forEach(semesterName => {
-        if (updatedSemesters[semesterName]) {
-            updatedSemesters[semesterName] = updatedSemesters[semesterName].map(course => ({
-                ...course,
-                conflict: null
-            }));
-        }
-    });
-
-    // 2. Check conflicts semester by semester
-    semesterOrder.forEach(semesterName => {
-        const currentSemesterCourses = updatedSemesters[semesterName] || [];
-        const coursesInCurrentSemesterSet = new Set(currentSemesterCourses.map(c => c.course_name));
-
-        currentSemesterCourses.forEach((course, index) => {
-            const rulesForThisCourse = prerequisiteRules[course.course_name];
-            let unmetPrerequisitesMessages = [];
-
-            if (rulesForThisCourse && rulesForThisCourse.length > 0) {
-                rulesForThisCourse.forEach(prereqRule => { // Iterate through rule objects {name, type}
-                    const { name: prereqName, type: prereqType } = prereqRule; // Get name and type
-                    let isMet = false;
-
-                    // Apply check based on the prerequisite type
-                    if (prereqType === 'strict') {
-                        isMet = takenCoursesInPreviousSemesters.has(prereqName); // Must be in *previous* semesters ONLY
-                        if (!isMet) {
-                            unmetPrerequisitesMessages.push(
-                                `Prerequisite '${prereqName}' must be completed before.` // Specific message
-                            );
-                        }
-                    } else if (prereqType === 'concurrent') {
-                        isMet = takenCoursesInPreviousSemesters.has(prereqName) || coursesInCurrentSemesterSet.has(prereqName); // Can be previous OR current
-                        if (!isMet) {
-                            unmetPrerequisitesMessages.push(
-                                `Prerequisite '${prereqName}' must be taken before or concurrently.` // Specific message
-                            );
-                        }
-                    } else {
-                        // Optional: Handle unknown types or default to one behavior (e.g., concurrent)
-                        console.warn(`Unknown prerequisite type '${prereqType}' for ${prereqName} regarding ${course.course_name}. Assuming concurrent.`);
-                        isMet = takenCoursesInPreviousSemesters.has(prereqName) || coursesInCurrentSemesterSet.has(prereqName);
-                        if (!isMet) {
-                            unmetPrerequisitesMessages.push(
-                                `Prerequisite '${prereqName}' must be taken before or concurrently.`
-                            );
-                        }
-                    }
-                });
-            }
-
-            // If any prerequisites were unmet, combine messages and set the conflict property
-            if (unmetPrerequisitesMessages.length > 0) {
-                updatedSemesters[semesterName][index].conflict = unmetPrerequisitesMessages.join("\n");
-                globalConflictsFound = true;
-                console.log(`MOCK Conflict(s) for: ${course.course_name} in ${semesterName}: ${updatedSemesters[semesterName][index].conflict.replace('\n', '; ')}`);
-            }
-        });
-
-        // 3. Add courses from CURRENT semester to set for NEXT semester's checks
-        coursesInCurrentSemesterSet.forEach(courseName => {
-            takenCoursesInPreviousSemesters.add(courseName);
-        });
-    });
-
-    console.log("MOCK Conflict check (Strict/Concurrent) complete. Conflicts found:", globalConflictsFound);
-    return updatedSemesters;
-};
-// --- End Mock Conflict Checking Logic ---
-
+// Start with the initial 4 base years
+const initialYears = ["Year1", "Year2", "Year3", "Year4"];
 
 function App() {
+  // ---------------------------
+  // LEFT SIDE STATES
+  // ---------------------------
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDegree, setSelectedDegree] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -128,150 +33,291 @@ function App() {
   const [semesterFilter, setSemesterFilter] = useState("");
   const [attributeFilter, setAttributeFilter] = useState("");
   const [attributeValueFilter, setAttributeValueFilter] = useState("");
-  const [openCategories, setOpenCategories] = useState(new Set()); // State for open dropdowns
-  const [semesters, setSemesters] = useState(() => { // Initialize using semesterOrder
-    const initial = {};
-    semesterOrder.forEach(name => { initial[name] = []; });
-    return initial;
-  });
-
+  const [openCategories, setOpenCategories] = useState(new Set());
   const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ---------------------------
+  // Dynamic List of Years
+  // ---------------------------
+  const [years, setYears] = useState(initialYears);
+
+  // ---------------------------
+  // RIGHT SIDE STATES (Semesters)
+  // ---------------------------
+  // Initialize semesters for each year using keys like "Year1Fall", "Year1Winter", etc.
+  const [semesters, setSemesters] = useState(() => {
+    const init = {};
+    initialYears.forEach((year) => {
+      init[year + "Fall"] = [];
+      init[year + "Winter"] = [];
+      init[year + "Spring"] = [];
+      init[year + "Summer"] = [];
+    });
+    return init;
+  });
+
+  // Winter & Summer toggles (by default they are hidden)
+  const [winterVisible, setWinterVisible] = useState(() => {
+    const init = {};
+    initialYears.forEach((year) => {
+      init[year] = false;
+    });
+    return init;
+  });
+  const [summerVisible, setSummerVisible] = useState(() => {
+    const init = {};
+    initialYears.forEach((year) => {
+      init[year] = false;
+    });
+    return init;
+  });
+
+  // Generate display labels: e.g. "Year1" becomes "Year 1"
+  const yearMap = years.reduce((acc, year) => {
+    acc[year] = "Year " + year.substring(4);
+    return acc;
+  }, {});
+
+  // ---------------------------
+  // Degree Requirements Data (Left Side)
+  // ---------------------------
   const degreeRequirements = {
-  "Computer Science": {
-    // --- General Notes (Optional, for display) ---
-    notes: [
-      "Minimum 120 credits total for degree.",
-      "Minimum GPA of 2.0 overall.",
-      "Minimum grade of 'C' in courses applied to the major (unless otherwise noted).",
-      "Completion of 45 upper-level credits, residence, Writing Intensive, and GenEd requirements.",
-      "Two courses in each track cannot be used towards any other tracks." // If applicable to other tracks you might add later
-    ],
+    "Computer Science": {
+      notes: [
+        "Minimum 120 credits total for degree.",
+        "Minimum GPA of 2.0 overall.",
+        "Minimum grade of 'C' in courses applied to the major (unless otherwise noted).",
+        "Completion of 45 upper-level credits, residence, Writing Intensive, and GenEd requirements.",
+        "Two courses in each track cannot be used towards any other tracks.",
+      ],
+      gateway: {
+        title: "Computer Science Gateway",
+        credits: 8,
+        description: "Complete the following with minimum grade of ‘B’:",
+        courses: ["CMSC 201 - Computer Science I (4)", "CMSC 202 - Computer Science II (4)"],
+      },
+      requiredCs: {
+        title: "Required Computer Science Courses",
+        credits: 27,
+        description: "Complete the following:",
+        courses: [
+          "CMSC 203 - Discrete Structures (3)",
+          "CMSC 304 - Social and Ethical Issues in Information Technology (3)",
+          "CMSC 313 - Computer Organization and Assembly Language Programming (3)",
+          "CMSC 331 - Principles of Programming Language (3)",
+          "CMSC 341 - Data Structures (3)",
+          "CMSC 411 - Computer Architecture (3)",
+          "CMSC 421 - Principles of Operating Systems (3)",
+          "CMSC 441 - Design and Analysis of Algorithms (3)",
+          "CMSC 447 - Software Engineering I (3)",
+        ],
+      },
+      requiredMath: {
+        title: "Required Mathematics Courses",
+        credits: 11,
+        description: "Complete the following:",
+        courses: [
+          "MATH 151 - Calculus and Analytic Geometry I (4)",
+          "MATH 152 - Calculus and Analytic Geometry II (4)",
+          "MATH 221 - Introduction to Linear Algebra (3)",
+        ],
+      },
+      requiredStats: {
+        title: "Required Statistics Courses",
+        credits: "3-4",
+        description: "Complete one (1) of the following:",
+        options: [
+          "STAT 355 - Introduction to Probability and Statistics for Scientists and Engineers (4)",
+          "STAT 451 - Introduction to Probability Theory (3)",
+        ],
+        countRequired: 1,
+      },
+      requiredScienceSequence: {
+        title: "Required Science Sequence",
+        credits: 8,
+        description: "Complete one (1) of the following two-course sequences:",
+        sequences: [
+          [
+            "BIOL 141 - Foundations of Biology: Cells, Energy and Organisms (4)",
+            "BIOL 142 - Foundations of Biology: Ecology and Evolution (4)",
+          ],
+          [
+            "CHEM 101 - Principles of Chemistry I (4)",
+            "CHEM 102 - Principles of Chemistry II (4)",
+          ],
+          [
+            "PHYS 121 - Introductory Physics I (4)",
+            "PHYS 122 - Introductory Physics II (4)",
+          ],
+        ],
+        countRequired: 1,
+      },
+      requiredLab: {
+        title: "Lab Science",
+        credits: "2-4",
+        description: "Complete one (1) of the following:",
+        options: [
+          "CHEM 102L - Introductory Chemistry Lab I (2)",
+          "GES 286 - Exploring the Environment: A Geo-Spatial Perspective (4)",
+          "PHYS 122L - Introductory Physics Laboratory (3)",
+          "SCI 101L - Quantitative Reasoning: Measurement and Skills Lab (2)",
+        ],
+        countRequired: 1,
+      },
+      csElectives: {
+        title: "Computer Science Electives",
+        creditsRequired: 6,
+        description: "Complete a minimum of 6 credits from the following:",
+        options: [
+          "CMSC 426 - Principles of Computer Security (3)",
+          "CMSC 431 - Compiler Design Principles (3)",
+          "CMSC 435 - Computer Graphics (3)",
+          "CMSC 448 - Software Engineering II (3)",
+          "CMSC 451 - Automata Theory and Formal Languages (3)",
+          "CMSC 455 - Numerical Computations (3)",
+          "CMSC 456 - Symbolic Computation (3)",
+          "CMSC 461 - Database Management Systems (3)",
+          "CMSC 471 - Introduction to Artificial Intelligence (3)",
+          "CMSC 481 - Computer Networks (3)",
+          "CMSC 483 - Parallel and Distributed Processing (3)",
+        ],
+      },
+      technicalElectives: {
+        title: "Technical Electives",
+        creditsRequired: 9,
+        description:
+          "Complete 9 credits from 400-level CMSC courses (excluding CMSC 404, 495, 498, 499), approved computer engineering (CMPE) courses, or a maximum of two courses from the list below:",
+        optionsDescription: "Eligible courses include:",
+        cmscOption:
+          "Any CMSC 4xx level course not otherwise required or excluded (CMSC 404, 495, 498, 499).",
+        cmpeOption: "Approved Computer Engineering (CMPE) courses.",
+        mathOptions: [
+          "MATH 430 - Matrix Analysis (3)",
+          "MATH 441 - Introduction to Numerical Analysis (3)",
+          "MATH 452 - Introduction to Stochastic Processes (3)",
+          "MATH 475 - Combinatorics and Graph Theory (3)",
+          "MATH 481 - Mathematical Modeling (3)",
+          "MATH 483 - Linear and Combinatorial Optimization (3)",
+        ],
+        mathLimitNote:
+          "A maximum of two MATH courses from this list may be used towards the Technical Elective requirement.",
+      },
+    },
+  };
 
-    // --- Specific Course Categories ---
-    gateway: {
-      title: "Computer Science Gateway",
-      credits: 8,
-      description: "Complete the following with minimum grade of ‘B’:",
-      courses: [
-        "CMSC 201 - Computer Science I (4)",
-        "CMSC 202 - Computer Science II (4)",
-      ],
-    },
-    requiredCs: {
-      title: "Required Computer Science Courses",
-      credits: 27,
-      description: "Complete the following:",
-      courses: [
-        "CMSC 203 - Discrete Structures (3)",
-        "CMSC 304 - Social and Ethical Issues in Information Technology (3)",
-        "CMSC 313 - Computer Organization and Assembly Language Programming (3)",
-        "CMSC 331 - Principles of Programming Language (3)",
-        "CMSC 341 - Data Structures (3)",
-        "CMSC 411 - Computer Architecture (3)",
-        "CMSC 421 - Principles of Operating Systems (3)",
-        "CMSC 441 - Design and Analysis of Algorithms (3)",
-        "CMSC 447 - Software Engineering I (3)",
-      ],
-    },
-    requiredMath: {
-      title: "Required Mathematics Courses",
-      credits: 11,
-      description: "Complete the following:",
-      courses: [
-        "MATH 151 - Calculus and Analytic Geometry I (4)",
-        "MATH 152 - Calculus and Analytic Geometry II (4)",
-        "MATH 221 - Introduction to Linear Algebra (3)",
-      ],
-    },
-    requiredStats: {
-      title: "Required Statistics Courses",
-      credits: "3-4", // Credits vary based on choice
-      description: "Complete one (1) of the following:",
-      options: [
-        "STAT 355 - Introduction to Probability and Statistics for Scientists and Engineers (4)",
-        "STAT 451 - Introduction to Probability Theory (3)",
-      ],
-      countRequired: 1, // Explicitly state how many options to choose
-    },
-    requiredScienceSequence: {
-      title: "Required Science Sequence",
-      credits: 8, // Each sequence is 8 credits
-      description: "Complete one (1) of the following two-course sequences:",
-      sequences: [
-        [
-          "BIOL 141 - Foundations of Biology: Cells, Energy and Organisms (4)",
-          "BIOL 142 - Foundations of Biology: Ecology and Evolution (4)"
-        ],
-        [
-          "CHEM 101 - Principles of Chemistry I (4)",
-          "CHEM 102 - Principles of Chemistry II (4)"
-        ],
-        [
-          "PHYS 121 - Introductory Physics I (4)",
-          "PHYS 122 - Introductory Physics II (4)"
-        ],
-      ],
-      countRequired: 1, // Choose one sequence
-    },
-    requiredLab: {
-      title: "Lab Science",
-      credits: "2-4", // Credits vary
-      description: "Complete one (1) of the following:",
-      options: [
-        "CHEM 102L - Introductory Chemistry Lab I (2)",
-        "GES 286 - Exploring the Environment: A Geo-Spatial Perspective (4)", // Note: Check if this is a lab course or a mistake in the source text, usually labs are 1-2 credits. Assuming text is correct for now.
-        "PHYS 122L - Introductory Physics Laboratory (3)",
-        "SCI 101L - Quantitative Reasoning: Measurement and Skills Lab (2)", // Corrected name based on common UMBC Catalogs, adjust if needed
-      ],
-      countRequired: 1,
-    },
-    csElectives: {
-      title: "Computer Science Electives",
-      creditsRequired: 6,
-      description: "Complete a minimum of 6 credits from the following:",
-      options: [
-        "CMSC 426 - Principles of Computer Security (3)",
-        "CMSC 431 - Compiler Design Principles (3)",
-        "CMSC 435 - Computer Graphics (3)",
-        "CMSC 448 - Software Engineering II (3)",
-        "CMSC 451 - Automata Theory and Formal Languages (3)",
-        "CMSC 455 - Numerical Computations (3)",
-        "CMSC 456 - Symbolic Computation (3)",
-        "CMSC 461 - Database Management Systems (3)",
-        "CMSC 471 - Introduction to Artificial Intelligence (3)",
-        "CMSC 481 - Computer Networks (3)",
-        "CMSC 483 - Parallel and Distributed Processing (3)",
-      ],
-    },
-    technicalElectives: {
-      title: "Technical Electives",
-      creditsRequired: 9,
-      description: "Complete 9 credits from 400-level CMSC courses (excluding CMSC 404, 495, 498, 499), approved computer engineering (CMPE) courses, or a maximum of two courses from the list below:",
-      // It's hard to list ALL eligible 400-level CMSC dynamically here,
-      // so we list the specific MATH options and note the CMSC/CMPE rule.
-      optionsDescription: "Eligible courses include:",
-      cmscOption: "Any CMSC 4xx level course not otherwise required or excluded (CMSC 404, 495, 498, 499).",
-      cmpeOption: "Approved Computer Engineering (CMPE) courses.",
-      mathOptions: [ // List the specific MATH options
-        "MATH 430 - Matrix Analysis (3)",
-        "MATH 441 - Introduction to Numerical Analysis (3)",
-        "MATH 452 - Introduction to Stochastic Processes (3)",
-        "MATH 475 - Combinatorics and Graph Theory (3)",
-        "MATH 481 - Mathematical Modeling (3)",
-        "MATH 483 - Linear and Combinatorial Optimization (3)",
-      ],
-      mathLimitNote: "A maximum of two MATH courses from this list may be used towards the Technical Elective requirement."
+  // ---------------------------
+  // CONFLICT CHECKING
+  // ---------------------------
+  const checkCourseConflicts = (semestersData) => {
+    // Build a dynamic semester order from the current years array
+    const semesterOrderDynamic = years.flatMap((year) => [
+      year + "Fall",
+      year + "Winter",
+      year + "Spring",
+      year + "Summer",
+    ]);
+
+    console.log("Running conflict check with data:", JSON.stringify(semestersData));
+    const updatedSemesters = JSON.parse(JSON.stringify(semestersData));
+    const takenCoursesInPreviousSemesters = new Set();
+    let globalConflictsFound = false;
+
+    // Reset conflict flags
+    semesterOrderDynamic.forEach((semesterName) => {
+      if (updatedSemesters[semesterName]) {
+        updatedSemesters[semesterName] = updatedSemesters[semesterName].map((course) => ({
+          ...course,
+          conflict: null,
+        }));
+      }
+    });
+
+    // Check conflicts in the dynamic order
+    semesterOrderDynamic.forEach((semesterName) => {
+      const currentSemesterCourses = updatedSemesters[semesterName] || [];
+      const coursesInCurrentSemesterSet = new Set(
+        currentSemesterCourses.map((c) => c.course_name)
+      );
+
+      currentSemesterCourses.forEach((course, index) => {
+        const rulesForThisCourse = prerequisiteRules[course.course_name];
+        let unmetPrerequisitesMessages = [];
+
+        if (rulesForThisCourse && rulesForThisCourse.length > 0) {
+          rulesForThisCourse.forEach((prereqRule) => {
+            const { name: prereqName, type: prereqType } = prereqRule;
+            let isMet = false;
+            if (prereqType === "strict") {
+              isMet = takenCoursesInPreviousSemesters.has(prereqName);
+              if (!isMet) {
+                unmetPrerequisitesMessages.push(
+                  `Prerequisite '${prereqName}' must be completed before.`
+                );
+              }
+            } else if (prereqType === "concurrent") {
+              isMet =
+                takenCoursesInPreviousSemesters.has(prereqName) ||
+                coursesInCurrentSemesterSet.has(prereqName);
+              if (!isMet) {
+                unmetPrerequisitesMessages.push(
+                  `Prerequisite '${prereqName}' must be taken before or concurrently.`
+                );
+              }
+            } else {
+              console.warn(
+                `Unknown prerequisite type '${prereqType}' for ${prereqName} regarding ${course.course_name}. Assuming concurrent.`
+              );
+              isMet =
+                takenCoursesInPreviousSemesters.has(prereqName) ||
+                coursesInCurrentSemesterSet.has(prereqName);
+              if (!isMet) {
+                unmetPrerequisitesMessages.push(
+                  `Prerequisite '${prereqName}' must be taken before or concurrently.`
+                );
+              }
+            }
+          });
+        }
+
+        if (unmetPrerequisitesMessages.length > 0) {
+          updatedSemesters[semesterName][index].conflict = unmetPrerequisitesMessages.join("\n");
+          globalConflictsFound = true;
+          console.log(
+            `Conflict for ${course.course_name} in ${semesterName}: ${
+              updatedSemesters[semesterName][index].conflict.replace("\n", "; ")
+            }`
+          );
+        }
+      });
+
+      // Add course names for next semester check
+      coursesInCurrentSemesterSet.forEach((courseName) => {
+        takenCoursesInPreviousSemesters.add(courseName);
+      });
+    });
+
+    console.log("Conflict check complete. Conflicts found:", globalConflictsFound);
+    return updatedSemesters;
+  };
+
+  // ---------------------------
+  // HELPER: Recommended Credits Tooltip
+  // ---------------------------
+  function getRecommendedCredits(semesterKey) {
+    const lower = semesterKey.toLowerCase();
+    if (lower.includes("winter")) {
+      return "Up to 4.5 credits";
+    } else if (lower.includes("summer")) {
+      return "Up to 16 credits";
     }
-  },
-  // You can add other degrees here using the same structured format
-  // "Information Technology": { ... },
-  // "Computer Engineering": { ... },
-};
+    return "Recommended credits: 12-19";
+  }
 
-  // --- Fetch Courses Effect (unchanged) ---
+  // ---------------------------
+  // FETCH Courses from API
+  // ---------------------------
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -290,15 +336,13 @@ function App() {
         setLoading(false);
       }
     };
-
     fetchCourses();
   }, []);
 
-
-  // --- Drag and Drop Handlers (Integrate MOCK check) ---
-
+  // ---------------------------
+  // DRAG & DROP HANDLERS
+  // ---------------------------
   const handleDragStart = (event, course, fromSemester = null) => {
-    // Use the existing structure for dragged data
     const draggedCourseData = {
       course_id: course.course_id,
       course_name: course.course_name,
@@ -306,7 +350,6 @@ function App() {
       category: course.category,
       catalog_name: course.catalog_name,
       course_num: course.course_num,
-      semester: course.semester,
       attribute: course.attribute,
       attributeValue: course.attributeValue,
     };
@@ -314,82 +357,57 @@ function App() {
       "text/plain",
       JSON.stringify({ course: draggedCourseData, fromSemester })
     );
-    // No effectAllowed needed here, handled by browser defaults or handleDragOver
   };
-
- const handleDrop = (event, targetSemester) => {
-    event.preventDefault();
-    const transferData = JSON.parse(event.dataTransfer.getData("text/plain"));
-    const { course, fromSemester } = transferData; // 'course' here is the dragged data object
-
-    // Use course_id if available, otherwise fall back to course_name for uniqueness check
-    const uniqueId = course.course_id || course.course_name;
-
-    // Use the functional update form of setState for safety
-    setSemesters(prevSemesters => {
-        let updatedSemesters = JSON.parse(JSON.stringify(prevSemesters)); // Deep copy for modification
-
-        // 1. Remove from original semester if moved
-        if (fromSemester && fromSemester !== targetSemester && updatedSemesters[fromSemester]) {
-            updatedSemesters[fromSemester] = updatedSemesters[fromSemester].filter(
-                (c) => (c.course_id || c.course_name) !== uniqueId
-            );
-        }
-
-        // Initialize target semester if needed (shouldn't be necessary with initialization, but safe)
-        if (!updatedSemesters[targetSemester]) {
-            updatedSemesters[targetSemester] = [];
-        }
-
-        // 2. Add to target semester if not already present
-        const courseExists = updatedSemesters[targetSemester].some(
-            (existingCourse) => (existingCourse.course_id || existingCourse.course_name) === uniqueId
-        );
-
-        if (!courseExists) {
-            // Find the full course data from allCourses to ensure we have the latest/complete object
-            const fullCourseData = allCourses.find(c => (c.course_id || c.course_name) === uniqueId) || course;
-             // Add the course, ensuring it has a 'conflict' property initialized to null
-            const courseToAdd = { ...fullCourseData, conflict: null };
-            updatedSemesters[targetSemester] = [...updatedSemesters[targetSemester], courseToAdd];
-        }
-
-        // 3. Run the MOCK conflict check on the new state and return it
-        const finalState = checkCourseConflicts(updatedSemesters);
-        console.log("State after drop and conflict check:", finalState); // Debug log
-        return finalState;
-    });
-};
-
 
   const handleDragOver = (event) => {
     event.preventDefault();
-    // Optionally set dropEffect if needed, but often default is fine
-    // event.dataTransfer.dropEffect = "move";
   };
 
-  // --- Remove Handler (Integrate MOCK check) ---
-  const removeCourse = (semester, courseToRemove) => {
-    const uniqueIdToRemove = courseToRemove.course_id || courseToRemove.course_name;
+  const handleDrop = (event, targetSemester) => {
+    event.preventDefault();
+    const transferData = JSON.parse(event.dataTransfer.getData("text/plain"));
+    const { course, fromSemester } = transferData;
+    const uniqueId = course.course_id || course.course_name;
 
-    setSemesters(prevSemesters => {
-        let updatedSemesters = JSON.parse(JSON.stringify(prevSemesters)); // Deep copy
+    setSemesters((prev) => {
+      let updated = JSON.parse(JSON.stringify(prev));
 
-        if (updatedSemesters[semester]) {
-            updatedSemesters[semester] = updatedSemesters[semester].filter(
-                (c) => (c.course_id || c.course_name) !== uniqueIdToRemove
-            );
-        }
+      if (fromSemester && fromSemester !== targetSemester && updated[fromSemester]) {
+        updated[fromSemester] = updated[fromSemester].filter(
+          (c) => (c.course_id || c.course_name) !== uniqueId
+        );
+      }
 
-        // Re-run MOCK conflict check after removal
-        const finalState = checkCourseConflicts(updatedSemesters);
-        console.log("State after remove and conflict check:", finalState); // Debug log
-        return finalState;
+      if (!updated[targetSemester]) {
+        updated[targetSemester] = [];
+      }
+      const exists = updated[targetSemester].some(
+        (c) => (c.course_id || c.course_name) === uniqueId
+      );
+      if (!exists) {
+        const fullCourseData =
+          allCourses.find((c) => (c.course_id || c.course_name) === uniqueId) || course;
+        updated[targetSemester].push({ ...fullCourseData, conflict: null });
+      }
+      return checkCourseConflicts(updated);
     });
   };
 
-  // --- Filtering Logic (unchanged) ---
-   const anyFilterApplied = () => {
+  const removeCourse = (semesterKey, courseToRemove) => {
+    const uniqueId = courseToRemove.course_id || courseToRemove.course_name;
+    setSemesters((prev) => {
+      let updated = JSON.parse(JSON.stringify(prev));
+      updated[semesterKey] = updated[semesterKey].filter(
+        (c) => (c.course_id || c.course_name) !== uniqueId
+      );
+      return checkCourseConflicts(updated);
+    });
+  };
+
+  // ---------------------------
+  // FILTERING (Left Side)
+  // ---------------------------
+  const anyFilterApplied = () => {
     return (
       searchTerm.trim() !== "" ||
       categoryFilter !== "" ||
@@ -403,15 +421,19 @@ function App() {
 
   const filteredCourses = allCourses.filter((course) => {
     const categoryMatch = categoryFilter === "" || course.category === categoryFilter;
-    // Handle credits filter potentially being a number or ""
     const creditsMatch = creditsFilter === "" || course.course_credits === creditsFilter;
-    const courseNumberMatch = courseNumberFilter === "" || (course.course_num && course.course_num.toString().startsWith(courseNumberFilter));
-    // Note: These filters below might not work well if the backend doesn't supply these fields yet
+    const courseNumberMatch =
+      courseNumberFilter === "" ||
+      (course.course_num &&
+        course.course_num.toString().startsWith(courseNumberFilter));
     const semesterMatch = semesterFilter === "" || course.semester === semesterFilter;
     const attributeMatch = attributeFilter === "" || course.attribute === attributeFilter;
-    const attributeValueMatch = attributeValueFilter === "" || course.attributeValue === attributeValueFilter;
-    const searchTermMatch = searchTerm.trim() === "" || (course.course_name && course.course_name.toLowerCase().includes(searchTerm.toLowerCase()));
-
+    const attributeValueMatch =
+      attributeValueFilter === "" || course.attributeValue === attributeValueFilter;
+    const searchTermMatch =
+      searchTerm.trim() === "" ||
+      (course.course_name &&
+        course.course_name.toLowerCase().includes(searchTerm.toLowerCase()));
     return (
       categoryMatch &&
       creditsMatch &&
@@ -423,186 +445,250 @@ function App() {
     );
   });
 
-  // --- Dynamically generate filter options (unchanged) ---
-  const uniqueCategories = [...new Set(allCourses.map(c => c.category).filter(Boolean))].sort();
-  const uniqueCredits = [...new Set(allCourses.map(c => c.course_credits).filter(c => c !== null))].sort((a, b) => a - b);
+  const uniqueCategories = [
+    ...new Set(allCourses.map((c) => c.category).filter(Boolean)),
+  ].sort();
+  const uniqueCredits = [
+    ...new Set(allCourses.map((c) => c.course_credits).filter((v) => v !== null && v !== undefined)),
+  ].sort((a, b) => a - b);
 
   const toggleCategory = (categoryKey) => {
-    setOpenCategories(prevOpenCategories => {
-      const newOpenCategories = new Set(prevOpenCategories); // Create a mutable copy
+    setOpenCategories((prev) => {
+      const newOpenCategories = new Set(prev);
       if (newOpenCategories.has(categoryKey)) {
-        newOpenCategories.delete(categoryKey); // Close it
+        newOpenCategories.delete(categoryKey);
       } else {
-        newOpenCategories.add(categoryKey); // Open it
+        newOpenCategories.add(categoryKey);
       }
-      return newOpenCategories; // Return the new Set
+      return newOpenCategories;
     });
   };
 
+  // ---------------------------
+  // TOGGLE FUNCTIONS for Winter & Summer
+  // ---------------------------
+  const toggleWinter = (year) => {
+    setWinterVisible((prev) => {
+      const newVisibility = !prev[year];
+      if (prev[year]) {
+        // If currently visible, toggling off: remove courses
+        setSemesters((prevSems) => {
+          const updated = { ...prevSems };
+          updated[year + "Winter"] = [];
+          return checkCourseConflicts(updated);
+        });
+      }
+      return { ...prev, [year]: newVisibility };
+    });
+  };
+
+  const toggleSummer = (year) => {
+    setSummerVisible((prev) => {
+      const newVisibility = !prev[year];
+      if (prev[year]) {
+        // If currently visible, toggling off: remove courses
+        setSemesters((prevSems) => {
+          const updated = { ...prevSems };
+          updated[year + "Summer"] = [];
+          return checkCourseConflicts(updated);
+        });
+      }
+      return { ...prev, [year]: newVisibility };
+    });
+  };
+
+  // ---------------------------
+  // ADD A NEW YEAR
+  // ---------------------------
+  const addYear = () => {
+    // Calculate the new year number from the current years array.
+    const yearNums = years.map((y) => Number(y.replace("Year", "")));
+    const maxYearNum = Math.max(...yearNums);
+    const newYear = "Year" + (maxYearNum + 1);
+
+    setYears((prev) => [...prev, newYear]);
+    // Initialize toggles for the new year.
+    setWinterVisible((prev) => ({ ...prev, [newYear]: false }));
+    setSummerVisible((prev) => ({ ...prev, [newYear]: false }));
+    // Initialize the 4 semester keys for the new year.
+    setSemesters((prev) => ({
+      ...prev,
+      [newYear + "Fall"]: [],
+      [newYear + "Winter"]: [],
+      [newYear + "Spring"]: [],
+      [newYear + "Summer"]: [],
+    }));
+  };
+
+  // ---------------------------
+  // REMOVE A SPECIFIC YEAR
+  // ---------------------------
+  const removeYear = (year) => {
+    // (Optional: prevent removal of base years if desired)
+    // if (["Year1", "Year2", "Year3", "Year4"].includes(year)) return;
+
+    // Remove the year from the 'years' list.
+    setYears((prev) => prev.filter((y) => y !== year));
+
+    // Remove its semesters from the state.
+    setSemesters((prev) => {
+      const updated = { ...prev };
+      delete updated[year + "Fall"];
+      delete updated[year + "Winter"];
+      delete updated[year + "Spring"];
+      delete updated[year + "Summer"];
+      return checkCourseConflicts(updated);
+    });
+
+    // Remove from toggle states.
+    setWinterVisible((prev) => {
+      const updated = { ...prev };
+      delete updated[year];
+      return updated;
+    });
+    setSummerVisible((prev) => {
+      const updated = { ...prev };
+      delete updated[year];
+      return updated;
+    });
+  };
+
+  // ---------------------------
+  // RENDER
+  // ---------------------------
   return (
     <div className="container">
-      {/* Left Column (unchanged structure) */}
+      {/* LEFT COLUMN */}
       <div className="left-column">
-        {/* Degree Requirements - Updated */}
         <div className="degree-requirements">
           <h2>Degree Requirements</h2>
           <select
-             value={selectedDegree}
-             onChange={(e) => {
-               setSelectedDegree(e.target.value);
-               setOpenCategories(new Set()); // Reset open categories when degree changes
-             }}
-             className="degree-dropdown"
-           >
-             <option value="">Select a Degree</option>
-             {Object.keys(degreeRequirements || {}).map((degree) => (
-               <option key={degree} value={degree}>
-                 {degree}
-               </option>
-             ))}
-           </select>
+            value={selectedDegree}
+            onChange={(e) => {
+              setSelectedDegree(e.target.value);
+              setOpenCategories(new Set());
+            }}
+            className="degree-dropdown"
+          >
+            <option value="">Select a Degree</option>
+            {Object.keys(degreeRequirements || {}).map((deg) => (
+              <option key={deg} value={deg}>
+                {deg}
+              </option>
+            ))}
+          </select>
+          {selectedDegree && degreeRequirements[selectedDegree] && (
+            <div className="degree-accordion">
+              {Object.keys(degreeRequirements[selectedDegree]).map((categoryKey) => {
+                const category = degreeRequirements[selectedDegree][categoryKey];
+                const isOpen = openCategories.has(categoryKey);
+                if (categoryKey === "notes" && Array.isArray(category)) {
+                  return (
+                    <div key={categoryKey} className="requirement-category category-notes">
+                      <button
+                        type="button"
+                        className="category-header"
+                        onClick={() => toggleCategory(categoryKey)}
+                        aria-expanded={isOpen}
+                      >
+                        <span>General Notes</span>
+                        <span className="toggle-icon">{isOpen ? "▼" : "▶"}</span>
+                      </button>
+                      {isOpen && (
+                        <div className="category-content">
+                          <ul>
+                            {category.map((note, idx) => (
+                              <li key={`note-${idx}`}>{note}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                if (typeof category !== "object" || category === null) return null;
 
-           {/* --- Dropdown Rendering Logic --- */}
-           {selectedDegree && degreeRequirements[selectedDegree] && (
-             <div className="degree-accordion">
-                {/* Iterate through all requirement categories */}
-                {Object.keys(degreeRequirements[selectedDegree]).map(categoryKey => {
-                    const category = degreeRequirements[selectedDegree][categoryKey];
-                    const isOpen = openCategories.has(categoryKey);
+                let creditInfo = "";
+                if (category.credits) {
+                  creditInfo = `(${category.credits} credits)`;
+                } else if (category.creditsRequired) {
+                  creditInfo = `(${category.creditsRequired} credits required)`;
+                }
 
-                    // Special handling for 'notes' if you want it displayed differently
-                    // or just treat it like any other category
-                    if (categoryKey === 'notes' && Array.isArray(category)) {
-                        // Option 1: Render notes as a non-collapsible section (or collapsible)
-                         return (
-                            <div key={categoryKey} className="requirement-category category-notes">
-                                <button
-                                    type="button"
-                                    className="category-header"
-                                    onClick={() => toggleCategory(categoryKey)}
-                                    aria-expanded={isOpen}
-                                >
-                                    <span>General Notes</span>
-                                    <span className="toggle-icon">{isOpen ? '▼' : '▶'}</span>
-                                </button>
-                                {isOpen && (
-                                    <div className="category-content">
-                                        <ul>
-                                            {category.map((note, index) => (
-                                                <li key={`note-${index}`}>{note}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                         );
-                    }
-
-                    // Skip rendering if category is not an object (like the notes array if handled above)
-                    if (typeof category !== 'object' || category === null) return null;
-
-
-                    // Determine credit string to display in header
-                    let creditInfo = '';
-                    if (category.credits) {
-                        creditInfo = `(${category.credits} credits)`;
-                    } else if (category.creditsRequired) {
-                         creditInfo = `(${category.creditsRequired} credits required)`;
-                    } else if (category.title === "Lab Science" || category.title === "Required Statistics Courses") {
-                        // Add specific logic if credits vary like "2-4" or "3-4"
-                        creditInfo = `(${category.credits} credits)`;
-                    }
-
-
-                    // Regular category rendering
-                    return (
-                      <div key={categoryKey} className={`requirement-category category-${categoryKey}`}>
-                        <button
-                          type="button" // Good practice for non-submitting buttons
-                          className="category-header"
-                          onClick={() => toggleCategory(categoryKey)}
-                          aria-expanded={isOpen} // Accessibility
-                        >
-                          {/* Header Content: Title and Credits */}
-                          <span>{category.title || categoryKey} {creditInfo}</span>
-                          {/* Toggle Icon */}
-                          <span className="toggle-icon">{isOpen ? '▼' : '▶'}</span>
-                        </button>
-
-                        {/* Content - Render only if open */}
-                        {isOpen && (
-                          <div className="category-content">
-                            {/* Description */}
-                            {category.description && <p>{category.description}</p>}
-
-                            {/* Required Courses List */}
-                            {category.courses && Array.isArray(category.courses) && (
-                              <ul>
-                                {category.courses.map((course, index) => (
-                                  <li key={`${categoryKey}-course-${index}`}>{course}</li>
-                                ))}
-                              </ul>
-                            )}
-
-                            {/* Options List */}
-                            {category.options && Array.isArray(category.options) && (
+                return (
+                  <div key={categoryKey} className={`requirement-category category-${categoryKey}`}>
+                    <button
+                      type="button"
+                      className="category-header"
+                      onClick={() => toggleCategory(categoryKey)}
+                      aria-expanded={isOpen}
+                    >
+                      <span>{category.title || categoryKey} {creditInfo}</span>
+                      <span className="toggle-icon">{isOpen ? "▼" : "▶"}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="category-content">
+                        {category.description && <p>{category.description}</p>}
+                        {category.courses && Array.isArray(category.courses) && (
+                          <ul>
+                            {category.courses.map((course, idx) => (
+                              <li key={`${categoryKey}-course-${idx}`}>{course}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {category.options && Array.isArray(category.options) && (
+                          <>
+                            {category.countRequired && <p><em>(Choose {category.countRequired})</em></p>}
+                            <ul>
+                              {category.options.map((opt, idx) => (
+                                <li key={`${categoryKey}-option-${idx}`}>{opt}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                        {category.sequences && Array.isArray(category.sequences) && (
+                          <>
+                            {category.countRequired && <p><em>(Choose {category.countRequired} sequence)</em></p>}
+                            {category.sequences.map((sequence, seqIndex) => (
+                              <div key={`${categoryKey}-seq-${seqIndex}`} className="sequence-option">
+                                <p><strong>Option {seqIndex + 1}:</strong></p>
+                                <ul>
+                                  {sequence.map((sCourse, sIdx) => (
+                                    <li key={`${categoryKey}-seq-${seqIndex}-course-${sIdx}`}>{sCourse}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                        {categoryKey === "technicalElectives" && (
+                          <div className="technical-electives-details">
+                            {category.optionsDescription && <p><em>{category.optionsDescription}</em></p>}
+                            {category.cmscOption && <p>- {category.cmscOption}</p>}
+                            {category.cmpeOption && <p>- {category.cmpeOption}</p>}
+                            {category.mathOptions && Array.isArray(category.mathOptions) && (
                               <>
-                                 {category.countRequired && <p><em>(Choose {category.countRequired})</em></p>}
-                                 <ul>
-                                   {category.options.map((option, index) => (
-                                     <li key={`${categoryKey}-option-${index}`}>{option}</li>
-                                   ))}
-                                 </ul>
+                                <p>- Maximum of two from the following MATH courses:</p>
+                                <ul>
+                                  {category.mathOptions.map((mathOpt, idx) => (
+                                    <li key={idx}>{mathOpt}</li>
+                                  ))}
+                                </ul>
                               </>
                             )}
-
-                             {/* Science Sequences List */}
-                             {category.sequences && Array.isArray(category.sequences) && (
-                                <>
-                                   {category.countRequired && <p><em>(Choose {category.countRequired} sequence)</em></p>}
-                                    {category.sequences.map((sequence, seqIndex) => (
-                                        <div key={`${categoryKey}-seq-${seqIndex}`} className="sequence-option">
-                                            <p><strong>Option {seqIndex + 1}:</strong></p>
-                                            <ul>
-                                                {sequence.map((course, courseIndex) => (
-                                                    <li key={`${categoryKey}-seq-${seqIndex}-course-${courseIndex}`}>{course}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </>
-                             )}
-
-                             {/* Special Handling for Technical Electives */}
-                             {categoryKey === 'technicalElectives' && (
-                                <div className="technical-electives-details">
-                                    {category.optionsDescription && <p><em>{category.optionsDescription}</em></p>}
-                                    {category.cmscOption && <p>- {category.cmscOption}</p>}
-                                    {category.cmpeOption && <p>- {category.cmpeOption}</p>}
-                                    {category.mathOptions && Array.isArray(category.mathOptions) && (
-                                        <>
-                                         <p>- Maximum of two from the following MATH courses:</p>
-                                         <ul>
-                                            {category.mathOptions.map((mathOption, index) => (
-                                                <li key={`${categoryKey}-math-${index}`}>{mathOption}</li>
-                                            ))}
-                                         </ul>
-                                        </>
-                                    )}
-                                     {category.mathLimitNote && <p><em>{category.mathLimitNote}</em></p>}
-                                </div>
-                             )}
-                          </div> // End category-content
+                            {category.mathLimitNote && <p><em>{category.mathLimitNote}</em></p>}
+                          </div>
                         )}
-                      </div> // End requirement-category
-                    );
-                })}
-             </div> // End degree-accordion
-           )}
-           {/* --- End Dropdown Rendering Logic --- */}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Course Search & Filters (unchanged structure) */}
+        {/* Course Search */}
         <div className="course-search">
           <h2>Course Search</h2>
           <input
@@ -612,7 +698,6 @@ function App() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {/* Filters UI (unchanged) */}
           <div className="filters">
             <select
               value={categoryFilter}
@@ -620,22 +705,27 @@ function App() {
               className="filter-dropdown"
             >
               <option value="">Category</option>
-              {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              {uniqueCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
             </select>
-
             <select
               value={creditsFilter}
               onChange={(e) => {
-                  const value = e.target.value;
-                  // Store as number or empty string
-                  setCreditsFilter(value === "" ? "" : parseInt(value, 10));
+                const val = e.target.value;
+                setCreditsFilter(val === "" ? "" : parseInt(val, 10));
               }}
               className="filter-dropdown"
             >
               <option value="">Credits</option>
-              {uniqueCredits.map(cred => <option key={cred} value={cred}>{cred} Credits</option>)}
+              {uniqueCredits.map((cred) => (
+                <option key={cred} value={cred}>
+                  {cred} Credits
+                </option>
+              ))}
             </select>
-
             <select
               value={courseNumberFilter}
               onChange={(e) => setCourseNumberFilter(e.target.value)}
@@ -647,7 +737,6 @@ function App() {
               <option value="3">3xx</option>
               <option value="4">4xx</option>
             </select>
-
             <select
               value={semesterFilter}
               onChange={(e) => setSemesterFilter(e.target.value)}
@@ -657,7 +746,6 @@ function App() {
               <option value="Fall">Fall</option>
               <option value="Spring">Spring</option>
             </select>
-
             <select
               value={attributeFilter}
               onChange={(e) => setAttributeFilter(e.target.value)}
@@ -666,92 +754,216 @@ function App() {
               <option value="">Attribute</option>
               <option value="First Year Experience">First Year Experience</option>
               <option value="General Education Program">General Education Program</option>
-               <option value="NONE">None</option>
+              <option value="NONE">None</option>
             </select>
-
-             <select
-                value={attributeValueFilter}
-                onChange={(e) => setAttributeValueFilter(e.target.value)}
-                className="filter-dropdown"
-                disabled={attributeFilter === "" || attributeFilter === "NONE" || attributeFilter === "First Year Experience"}
+            <select
+              value={attributeValueFilter}
+              onChange={(e) => setAttributeValueFilter(e.target.value)}
+              className="filter-dropdown"
+              disabled={
+                attributeFilter === "" ||
+                attributeFilter === "NONE" ||
+                attributeFilter === "First Year Experience"
+              }
             >
-                <option value="">Attribute Value</option>
-                {attributeFilter === "General Education Program" && (
-                    <>
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="Science Plus Lab">Science Plus Lab</option>
-                    </>
-                )}
+              <option value="">Attribute Value</option>
+              {attributeFilter === "General Education Program" && (
+                <>
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="Science Plus Lab">Science Plus Lab</option>
+                </>
+              )}
             </select>
-
           </div>
-
-          {/* Display Loading / Error / Results (unchanged structure) */}
           <div className="search-results">
-             {loading && <p>Loading courses...</p>}
-             {error && <p className="error-message">{error}</p>}
-             {!loading && !error && anyFilterApplied() &&
+            {loading && <p>Loading courses...</p>}
+            {error && <p className="error-message">{error}</p>}
+            {!loading &&
+              !error &&
+              anyFilterApplied() &&
               filteredCourses.map((course) => (
                 <div
-                  // Use course_id if available, fallback to course_name for key
                   key={course.course_id || course.course_name}
                   className="result-item"
                   draggable
-                  onDragStart={(event) => handleDragStart(event, course)}
+                  onDragStart={(e) => handleDragStart(e, course)}
                 >
                   <strong>{course.course_name}</strong> ({course.catalog_name})
                 </div>
               ))}
-            {!loading && !error && anyFilterApplied() && filteredCourses.length === 0 && (
-                 <p>No courses match the selected filters.</p>
-            )}
+            {!loading &&
+              !error &&
+              anyFilterApplied() &&
+              filteredCourses.length === 0 && (
+                <p>No courses match the selected filters.</p>
+              )}
             {!loading && !error && !anyFilterApplied() && (
-                <p>Apply filters or search to see courses.</p>
+              <p>Apply filters or search to see courses.</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Right Column (Semesters) - Updated Rendering */}
+      {/* RIGHT COLUMN: MULTI-YEAR PLANNER */}
       <div className="semesters">
         <h2>Semesters</h2>
-        {/* Use semesterOrder to ensure consistent display order */}
-        {semesterOrder.map((semesterName) => (
-          <div
-            key={semesterName}
-            className="semester-item"
-            onDragOver={handleDragOver}
-            onDrop={(event) => handleDrop(event, semesterName)}
-          >
-            <div className="semester-title">{semesterName}</div>
-            <div className="courses">
-              {/* Render courses from state, checking for existence */}
-              {(semesters[semesterName] || []).map((course, idx) => (
-                <div
-                  // Use course_id if available, fallback to course_name for key uniqueness
-                  key={`${semesterName}-${course.course_id || course.course_name}-${idx}`}
-                   // Add 'conflict' class conditionally based on the course's conflict property
-                  className={`course-box ${course.conflict ? 'conflict' : ''}`}
-                  draggable
-                  onDragStart={(event) =>
-                    // Pass the full course object and the semester it's coming from
-                    handleDragStart(event, course, semesterName)
-                  }
-                  // Add title attribute to show conflict message on hover
-                  title={course.conflict || ''}
-                >
-                  <strong>{course.course_name}</strong>
-                  <button
-                    className="remove-btn"
-                    onClick={() => removeCourse(semesterName, course)}
+        {years.map((year) => (
+          <div className="year-container" key={year}>
+            <h3 className="year-header">{yearMap[year]}</h3>
+
+            {/* If this is an optional year (not one of the base 4), show a Remove button */}
+            {!["Year1", "Year2", "Year3", "Year4"].includes(year) && (
+              <button
+                className="remove-year-button"
+                onClick={() => removeYear(year)}
+              >
+                Remove {yearMap[year]}
+              </button>
+            )}
+
+            {/* FALL (Always visible) */}
+            <div
+              className="semester-box"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, year + "Fall")}
+            >
+              <div className="semester-title">Fall</div>
+              <div className="question-mark-container">
+                <span className="question-mark">?</span>
+                <span className="tooltip-text">{getRecommendedCredits(year + "Fall")}</span>
+              </div>
+              <div className="courses">
+                {(semesters[year + "Fall"] || []).map((course, idx) => (
+                  <div
+                    key={year + "Fall-" + (course.course_id || course.course_name) + "-" + idx}
+                    className={`course-box ${course.conflict ? "conflict" : ""}`}
+                    draggable
+                    onDragStart={(evt) => handleDragStart(evt, course, year + "Fall")}
+                    title={course.conflict || ""}
                   >
-                    ✖
-                  </button>
-                </div>
-              ))}
+                    <strong>{course.course_name}</strong>
+                    <button className="remove-btn" onClick={() => removeCourse(year + "Fall", course)}>
+                      ✖
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* WINTER Toggle */}
+            <div className="horizontal-line-container" onClick={() => toggleWinter(year)}>
+              <div className="plus-circle">{winterVisible[year] ? "–" : "+"}</div>
+            </div>
+            {winterVisible[year] && (
+              <div
+                className="semester-box"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, year + "Winter")}
+              >
+                <div className="semester-title">Winter</div>
+                <div className="question-mark-container">
+                  <span className="question-mark">?</span>
+                  <span className="tooltip-text">{getRecommendedCredits(year + "Winter")}</span>
+                </div>
+                <div className="courses">
+                  {(semesters[year + "Winter"] || []).map((course, idx) => (
+                    <div
+                      key={year + "Winter-" + (course.course_id || course.course_name) + "-" + idx}
+                      className={`course-box ${course.conflict ? "conflict" : ""}`}
+                      draggable
+                      onDragStart={(evt) => handleDragStart(evt, course, year + "Winter")}
+                      title={course.conflict || ""}
+                    >
+                      <strong>{course.course_name}</strong>
+                      <button
+                        className="remove-btn"
+                        onClick={() => removeCourse(year + "Winter", course)}
+                      >
+                        ✖
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SPRING (Always visible) */}
+            <div
+              className="semester-box"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, year + "Spring")}
+            >
+              <div className="semester-title">Spring</div>
+              <div className="question-mark-container">
+                <span className="question-mark">?</span>
+                <span className="tooltip-text">{getRecommendedCredits(year + "Spring")}</span>
+              </div>
+              <div className="courses">
+                {(semesters[year + "Spring"] || []).map((course, idx) => (
+                  <div
+                    key={year + "Spring-" + (course.course_id || course.course_name) + "-" + idx}
+                    className={`course-box ${course.conflict ? "conflict" : ""}`}
+                    draggable
+                    onDragStart={(evt) => handleDragStart(evt, course, year + "Spring")}
+                    title={course.conflict || ""}
+                  >
+                    <strong>{course.course_name}</strong>
+                    <button
+                      className="remove-btn"
+                      onClick={() => removeCourse(year + "Spring", course)}
+                    >
+                      ✖
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SUMMER Toggle */}
+            <div className="horizontal-line-container" onClick={() => toggleSummer(year)}>
+              <div className="plus-circle">{summerVisible[year] ? "–" : "+"}</div>
+            </div>
+            {summerVisible[year] && (
+              <div
+                className="semester-box"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, year + "Summer")}
+              >
+                <div className="semester-title">Summer</div>
+                <div className="question-mark-container">
+                  <span className="question-mark">?</span>
+                  <span className="tooltip-text">{getRecommendedCredits(year + "Summer")}</span>
+                </div>
+                <div className="courses">
+                  {(semesters[year + "Summer"] || []).map((course, idx) => (
+                    <div
+                      key={year + "Summer-" + (course.course_id || course.course_name) + "-" + idx}
+                      className={`course-box ${course.conflict ? "conflict" : ""}`}
+                      draggable
+                      onDragStart={(evt) => handleDragStart(evt, course, year + "Summer")}
+                      title={course.conflict || ""}
+                    >
+                      <strong>{course.course_name}</strong>
+                      <button
+                        className="remove-btn"
+                        onClick={() => removeCourse(year + "Summer", course)}
+                      >
+                        ✖
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
+
+        {/* Button to add another year */}
+        <div className="add-year-container">
+          <button className="add-year-button" onClick={addYear}>
+            + Add Another Year
+          </button>
+        </div>
       </div>
     </div>
   );

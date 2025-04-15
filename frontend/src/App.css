@@ -1,8 +1,15 @@
+/* =============================================================================
+   CONTAINER
+   -----------------------------------------------------------------------------
+   Use a flexible container that grows with content.
+============================================================================= */
 .container {
   display: flex;
-  height: 100vh;
+  min-height: 100vh; /* Changed from fixed height so the container grows with content */
   padding: 20px;
 }
+
+
 
 .left-column {
   width: 33%;
@@ -16,70 +23,6 @@
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.semesters {
-  width: 67%;
-  margin-left: 20px;
-  background-color: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.semester-item {
-  padding: 10px;
-  background-color: #e0e0e0;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  min-height: 60px;
-}
-
-.semester-title {
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.courses {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.course-box {
-  padding: 10px;
-  background-color: #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #4b4b4b;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.remove-btn {
-  background: none;
-  border: none;
-  color: red;
-  cursor: pointer;
-  font-size: 16px;
-  margin-left: 10px;
-}
-
-.remove-btn:hover {
-  color: darkred;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 14px;
-  margin-top: 10px;
-  box-sizing: border-box;
 }
 
 .degree-dropdown {
@@ -103,31 +46,14 @@
   align-items: flex-start;
 }
 
-.search-results {
+.search-input {
   width: 100%;
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.result-item {
-  padding: 8px;
-  background-color: #e0e0e0;
+  padding: 10px;
+  border: 1px solid #ccc;
   border-radius: 8px;
   font-size: 14px;
-  color: #4b4b4b;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  cursor: grab;
-  text-align: center;
-}
-
-.result-item:active {
-  opacity: 0.5;
-}
-
-.semester-item:hover {
-  background-color: #d0d0d0;
+  margin-top: 10px;
+  box-sizing: border-box;
 }
 
 .filters {
@@ -157,7 +83,62 @@
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-/* Below is the CSS associated with the prerequisite checking. */
+.search-results {
+  width: 100%;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.result-item {
+  padding: 8px;
+  background-color: #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4b4b4b;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: grab;
+  text-align: center;
+}
+
+.result-item:active {
+  opacity: 0.5;
+}
+
+
+/* =============================================================================
+   COMMON STYLES – Course Box, Remove Button, Prerequisite Conflict, etc.
+============================================================================= */
+.semester-item,
+.course-box {
+  padding: 10px;
+  background-color: #e0e0e0;
+  border-radius: 8px;
+  min-height: 60px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.course-box {
+  font-size: 14px;
+  color: #4b4b4b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  color: red;
+  cursor: pointer;
+  font-size: 16px;
+  margin-left: 10px;
+}
+
+.remove-btn:hover {
+  color: darkred;
+}
 
 .course-box.conflict {
   background-color: #ffdddd;
@@ -166,15 +147,15 @@
 }
 
 .course-box.conflict .remove-btn {
-    color: #cc0000;
+  color: #cc0000;
 }
 
 .course-box.conflict .remove-btn:hover {
-    color: #8b0000;
+  color: #8b0000;
 }
 
 .course-box.conflict:hover {
-    cursor: help;
+  cursor: help;
 }
 
 .semester-title {
@@ -183,8 +164,10 @@
   margin-bottom: 10px;
 }
 
-/* Below is the CSS associated with the Degree Requirements updates. */
 
+/* -----------------------------------------------------------------------------
+   Degree Requirements Accordion
+----------------------------------------------------------------------------- */
 .degree-accordion {
   margin-top: 15px;
   border: 1px solid #ccc;
@@ -195,6 +178,7 @@
 .requirement-category {
   border-bottom: 1px solid #ccc;
 }
+
 .requirement-category:last-child {
   border-bottom: none;
 }
@@ -219,7 +203,7 @@
 }
 
 .category-header span:first-child {
-    margin-right: 10px;
+  margin-right: 10px;
 }
 
 .toggle-icon {
@@ -245,7 +229,7 @@
 }
 
 .category-content p {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .sequence-option {
@@ -256,8 +240,182 @@
 
 .technical-electives-details p,
 .technical-electives-details ul {
-    margin-bottom: 8px;
+  margin-bottom: 8px;
 }
+
 .technical-electives-details > p:first-child {
-    font-style: italic;
+  font-style: italic;
+}
+
+
+/* =============================================================================
+   RIGHT COLUMN – 4-YEAR PLANNER
+============================================================================= */
+.semesters {
+  width: 67%;
+  margin-left: 20px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* Ensures the right column stacks its contents vertically */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Academic Year Container */
+.year-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  width: 100%;
+  border: 1px solid #aaa; /* Slight outline */
+  border-radius: 4px;
+  padding: 10px;
+  box-sizing: border-box;
+  background-color: #fafafa;
+}
+
+.year-header {
+  text-decoration: underline;
+  font-size: 1.2em;
+  margin: 0 0 10px 0;
+}
+
+/* Semester Boxes and Toggle Line */
+.semester-box,
+.horizontal-line-container {
+  width: 90%;
+  max-width: 800px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Semester Boxes in the Planner */
+.semester-box {
+  background-color: #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  min-height: 60px;
+  padding: 10px;
+  position: relative;
+}
+
+.semester-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* Courses inside the Planner */
+.courses {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Horizontal Toggle Line with Plus/Minus Button */
+.horizontal-line-container {
+  margin: 20px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.horizontal-line-container::before,
+.horizontal-line-container::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: #333;
+}
+
+.plus-circle {
+  width: 50px;
+  height: 50px;
+  border: 2px solid #333;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
+  background-color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 10px;
+}
+
+/* Tooltip for Recommended Credits */
+.question-mark-container {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: help;
+}
+
+.question-mark {
+  background: #333;
+  color: #fff;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+  text-align: center;
+  margin-right: 5px;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  width: max-content;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 6px;
+  position: absolute;
+  z-index: 10;
+  top: 25px;
+  right: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.question-mark-container:hover .tooltip-text {
+  visibility: visible;
+}
+.add-year-button {
+  font-size: 1.2rem;       /* Increase text size */
+  padding: 10px 20px;      /* More generous padding */
+  background-color: #28a745;  /* A green background */
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.add-year-button:hover {
+  background-color: #218838; /* Darker green on hover */
+}
+
+.remove-year-button {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  background-color: #dc3545;  /* Red background */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.remove-year-button:hover {
+  background-color: #c82333;
+}
+
+.add-year-container {
+  margin-top: 20px;
+  text-align: center;
 }
