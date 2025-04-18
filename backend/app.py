@@ -35,7 +35,7 @@ class Course(db.Model):
     course_num = db.Column(db.Integer, nullable=True)
     course_desc = db.Column(db.Text, nullable=True) # Use db.Text for TEXT SQL type
     course_credits = db.Column(db.Integer, nullable=True)
-    prerequiste_stmt = db.Column(db.Text)
+    prerequisite_stmt = db.Column(db.Text)
 
     # Convert the object to a dictionary (useful for JSON responses)
     def to_dict(self):
@@ -47,7 +47,7 @@ class Course(db.Model):
             "course_num": self.course_num,
             "course_desc": self.course_desc,
             "course_credits": self.course_credits,
-            "prerequiste_stmt": self.prerequiste_stmt
+            "prerequisite_stmt": self.prerequisite_stmt
         }
 
 # Database models for course prerequisites
