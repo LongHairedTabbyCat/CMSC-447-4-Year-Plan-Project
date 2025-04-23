@@ -1,26 +1,34 @@
-/* =============================================================================
-   CONTAINER
-   -----------------------------------------------------------------------------
-   Use a flexible container that grows with content.
-============================================================================= */
-.container {
-  display: flex;
-  min-height: 100vh; /* Changed from fixed height so the container grows with content */
-  padding: 20px;
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
-
+.container {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 
 .left-column {
   width: 33%;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
+  height: 100%;
+  padding-right: 10px;
 }
 
 .degree-requirements {
   background-color: #f0f0f0;
-  padding: 20px;
+  padding-bottom: 20px;
+  padding-right: 20px;
+  padding-left: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -38,7 +46,9 @@
 
 .course-search {
   background-color: #f0f0f0;
-  padding: 20px;
+  padding-bottom: 20px;
+  padding-right: 20px;
+  padding-left: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -106,10 +116,6 @@
   opacity: 0.5;
 }
 
-
-/* =============================================================================
-   COMMON STYLES – Course Box, Remove Button, Prerequisite Conflict, etc.
-============================================================================= */
 .semester-item,
 .course-box {
   padding: 10px;
@@ -164,10 +170,6 @@
   margin-bottom: 10px;
 }
 
-
-/* -----------------------------------------------------------------------------
-   Degree Requirements Accordion
------------------------------------------------------------------------------ */
 .degree-accordion {
   margin-top: 15px;
   border: 1px solid #ccc;
@@ -247,11 +249,6 @@
   font-style: italic;
 }
 
-
-/* =============================================================================
-   RIGHT COLUMN – 4-YEAR PLANNER
-============================================================================= */
-/* Establish a unified color palette for both sides */
 :root {
   --primary-bg: #f0f0f0;
   --secondary-bg: #ffffff;
@@ -262,7 +259,6 @@
   --course-bg: #e9ecef;
 }
 
-/* Left column - adjusted for visual harmony */
 .left-column {
   width: 33%;
   display: flex;
@@ -272,24 +268,24 @@
 
 .degree-requirements, .course-search {
   background-color: var(--primary-bg);
-  padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Right column - adjusted for visual harmony */
 .semesters {
   width: 67%;
   margin-left: 20px;
   background-color: var(--primary-bg);
-  padding: 20px;
   border-radius: 8px;
+  padding-right: 20px;
+  padding-left: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
 }
 
-/* Year Container - Improved */
 .year-container {
   display: flex;
   flex-direction: column;
@@ -311,7 +307,6 @@
   border-bottom: 2px solid var(--primary-accent);
 }
 
-/* Semester Boxes - More Compact Design */
 .semester-box {
   background-color: var(--semester-bg);
   border-radius: 8px;
@@ -329,7 +324,6 @@
   color: var(--text-color);
 }
 
-/* Courses Container */
 .courses {
   margin-top: 10px;
   display: flex;
@@ -337,7 +331,6 @@
   gap: 8px;
 }
 
-/* Course Box - Enhanced */
 .course-box {
   padding: 10px 12px;
   background-color: var(--course-bg);
@@ -351,7 +344,6 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Simplified toggle line */
 .horizontal-line-container {
   display: flex;
   align-items: center;
@@ -371,7 +363,6 @@
   background: var(--border-color);
 }
 
-/* Simplified toggle button without circle */
 .plus-circle {
   display: flex;
   align-items: center;
@@ -389,7 +380,6 @@
   color: #0056b3;
 }
 
-/* Question Mark & Tooltip */
 .question-mark-container {
   position: absolute;
   top: 12px;
@@ -429,7 +419,6 @@
   visibility: visible;
 }
 
-/* Result items in search (left side) */
 .result-item {
   padding: 8px;
   background-color: var(--course-bg);
@@ -442,7 +431,6 @@
   border: 1px solid var(--border-color);
 }
 
-/* Improved Add/Remove Year Buttons */
 .add-year-button {
   font-size: 1rem;
   padding: 8px 18px;
@@ -482,7 +470,6 @@
   text-align: center;
 }
 
-/* Conflict styling */
 .course-box.conflict {
   background-color: #ffdddd;
   border: 1px solid #cc0000;
