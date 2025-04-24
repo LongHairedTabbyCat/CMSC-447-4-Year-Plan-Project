@@ -257,7 +257,28 @@ def get_eligible_courses():
         if not all_satisfied:
             continue
 
+        # Check concurrent prereqs (not required to be satisfied now, just shown)
+        concurrent_prereqs = ConcurrentPrereq.query.filter_by(course_id=course.course_id).all()
+        concurrent_details = []
+        for c in concurrent_prereqs:
+            concurrent_course = Course.query.get(c.concurrent_id)
+            if concurrent_course:
+                concurrent_details.append({
+                    "course_id": c.concurrent_id,
+                    "catalogname": concurrent_course.catalogname,
+                    "course_name": concurrent_course.course_name
+                })
 
+        eligible_courses.append({
+            "course_id": course.course_id,
+            "catalogname": course.catalogname,
+            "course_name": course.course_name,
+            "prerequisite_reason": satisfied_details,
+            "concurrent_prereqs": concurrent_details,
+            "prerequisite_stmt": course.prerequiste_stmt
+        })
+
+    return jsonify({"eligible_courses": eligible_courses})
 
 # -------------------- Run the Flask App --------------------
 
