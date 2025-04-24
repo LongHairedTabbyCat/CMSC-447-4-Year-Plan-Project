@@ -219,6 +219,45 @@ def get_eligible_courses():
     eligible_courses = []
     all_courses = Course.query.all()
 
+    for course in all_courses:
+        # Skip courses already completed
+        if course.course_id in completed_ids:
+            continue
+
+        # Check AND prerequisites
+        and_reqs = AndGroupPrereq.query.filter_by(course_id=course.course_id).all()
+        group_map = {}
+        for req in and_reqs:
+            group_map.setdefault(req.and_group_id, []).append(req.prerequisite_id)
+
+        all_satisfied = True
+        satisfied_details = []
+
+        for group_id, prereq_ids in group_map.items():
+            satisfied_in_group = []
+            for pid in prereq_ids:
+                if pid in completed_ids:
+                    prereq_course = Course.query.get(pid)
+                    if prereq_course:
+                        satisfied_in_group.append({
+                            "course_id": pid,
+                            "catalogname": prereq_course.catalogname,
+                            "course_name": prereq_course.course_name
+                        })
+
+            if len(satisfied_in_group) == len(prereq_ids):
+                satisfied_details.append({
+                    "group_id": group_id,
+                    "satisfied_courses": satisfied_in_group
+                })
+            else:
+                all_satisfied = False
+                break
+
+        if not all_satisfied:
+            continue
+
+
 
 # -------------------- Run the Flask App --------------------
 
