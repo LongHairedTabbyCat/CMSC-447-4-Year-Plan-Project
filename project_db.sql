@@ -184,7 +184,7 @@ CREATE TABLE `courses` (
   `course_num` int DEFAULT NULL,
   `course_desc` text,
   `course_credits` int DEFAULT NULL,
-  `prerequiste_stmt` text,
+  `prerequisite_stmt` text,
   PRIMARY KEY (`course_id`),
   UNIQUE KEY `category` (`category`,`course_num`,`course_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -299,4 +299,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-04-13 16:40:22
+-- Dump completed on 2025-04-15 16:54:10

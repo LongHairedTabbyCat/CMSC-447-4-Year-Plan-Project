@@ -1,30 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./App.css";
 
 const API_BASE_URL = "http://localhost:5000";
 
-// Define prerequisite rules
-const prerequisiteRules = {
-  "Artificial Intelligence": [
-    { name: "Computer Science I", type: "strict" },
-    { name: "Computer Science II", type: "concurrent" },
-  ],
-  "Computer Science II": [{ name: "Computer Science I", type: "strict" }],
-  "Computer Science I": [{ name: "Precalculus Mathematics", type: "strict" }],
-  "Data Structures": [{ name: "Computer Science II", type: "concurrent" }],
-  "Machine Learning": [
-    { name: "Data Structures", type: "concurrent" },
-    { name: "Linear Algebra", type: "concurrent" },
-  ],
-};
-
-// Start with the initial 4 base years
 const initialYears = ["Year1", "Year2", "Year3", "Year4"];
 
 function App() {
-  // ---------------------------
-  // LEFT SIDE STATES
-  // ---------------------------
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDegree, setSelectedDegree] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -37,16 +18,7 @@ function App() {
   const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // ---------------------------
-  // Dynamic List of Years
-  // ---------------------------
   const [years, setYears] = useState(initialYears);
-
-  // ---------------------------
-  // RIGHT SIDE STATES (Semesters)
-  // ---------------------------
-  // Initialize semesters for each year using keys like "Year1Fall", "Year1Winter", etc.
   const [semesters, setSemesters] = useState(() => {
     const init = {};
     initialYears.forEach((year) => {
@@ -57,8 +29,6 @@ function App() {
     });
     return init;
   });
-
-  // Winter & Summer toggles (by default they are hidden)
   const [winterVisible, setWinterVisible] = useState(() => {
     const init = {};
     initialYears.forEach((year) => {
@@ -73,17 +43,12 @@ function App() {
     });
     return init;
   });
-
-  // Generate display labels: e.g. "Year1" becomes "Year 1"
   const yearMap = years.reduce((acc, year) => {
     acc[year] = "Year " + year.substring(4);
     return acc;
   }, {});
-
-  // ---------------------------
-  // Degree Requirements Data (Left Side)
-  // ---------------------------
-  const degreeRequirements = {
+  // ... (Keep degreeRequirements data) ...
+    const degreeRequirements = {
     "Computer Science": {
       notes: [
         "Minimum 120 credits total for degree.",
@@ -207,105 +172,94 @@ function App() {
     },
   };
 
+
   // ---------------------------
-  // CONFLICT CHECKING
+  // NEW: BACKEND CONFLICT CHECKING
   // ---------------------------
-  const checkCourseConflicts = (semestersData) => {
-    // Build a dynamic semester order from the current years array
-    const semesterOrderDynamic = years.flatMap((year) => [
-      year + "Fall",
-      year + "Winter",
-      year + "Spring",
-      year + "Summer",
+  const checkPrerequisitesWithAPI = useCallback(async (currentSemestersData) => {
+    // 1. Define the chronological order of semesters based on current years
+    const semesterOrder = years.flatMap(year => [
+        `${year}Fall`,
+        `${year}Winter`,
+        `${year}Spring`,
+        `${year}Summer`
     ]);
 
-    console.log("Running conflict check with data:", JSON.stringify(semestersData));
-    const updatedSemesters = JSON.parse(JSON.stringify(semestersData));
-    const takenCoursesInPreviousSemesters = new Set();
-    let globalConflictsFound = false;
+    // 2. Transform data for the backend
+    const payload = {
+      semesters: semesterOrder.map(semesterKey => ({
+        // Use the semester key as the name for simplicity in debugging,
+        // the backend primarily cares about the order.
+        name: semesterKey,
+        // Ensure we only send course IDs
+        courses: (currentSemestersData[semesterKey] || []).map(course => course.course_id)
+      }))
+    };
 
-    // Reset conflict flags
-    semesterOrderDynamic.forEach((semesterName) => {
-      if (updatedSemesters[semesterName]) {
-        updatedSemesters[semesterName] = updatedSemesters[semesterName].map((course) => ({
-          ...course,
-          conflict: null,
-        }));
+    console.log("Sending to backend for check:", JSON.stringify(payload));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/plan/check-prerequisites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`API Error (${response.status}): ${errorData.error || 'Unknown error'}`);
       }
-    });
 
-    // Check conflicts in the dynamic order
-    semesterOrderDynamic.forEach((semesterName) => {
-      const currentSemesterCourses = updatedSemesters[semesterName] || [];
-      const coursesInCurrentSemesterSet = new Set(
-        currentSemesterCourses.map((c) => c.course_name)
-      );
+      const result = await response.json();
+      console.log("Received from backend:", result);
 
-      currentSemesterCourses.forEach((course, index) => {
-        const rulesForThisCourse = prerequisiteRules[course.course_name];
-        let unmetPrerequisitesMessages = [];
-
-        if (rulesForThisCourse && rulesForThisCourse.length > 0) {
-          rulesForThisCourse.forEach((prereqRule) => {
-            const { name: prereqName, type: prereqType } = prereqRule;
-            let isMet = false;
-            if (prereqType === "strict") {
-              isMet = takenCoursesInPreviousSemesters.has(prereqName);
-              if (!isMet) {
-                unmetPrerequisitesMessages.push(
-                  `Prerequisite '${prereqName}' must be completed before.`
-                );
-              }
-            } else if (prereqType === "concurrent") {
-              isMet =
-                takenCoursesInPreviousSemesters.has(prereqName) ||
-                coursesInCurrentSemesterSet.has(prereqName);
-              if (!isMet) {
-                unmetPrerequisitesMessages.push(
-                  `Prerequisite '${prereqName}' must be taken before or concurrently.`
-                );
-              }
-            } else {
-              console.warn(
-                `Unknown prerequisite type '${prereqType}' for ${prereqName} regarding ${course.course_name}. Assuming concurrent.`
-              );
-              isMet =
-                takenCoursesInPreviousSemesters.has(prereqName) ||
-                coursesInCurrentSemesterSet.has(prereqName);
-              if (!isMet) {
-                unmetPrerequisitesMessages.push(
-                  `Prerequisite '${prereqName}' must be taken before or concurrently.`
-                );
-              }
-            }
-          });
-        }
-
-        if (unmetPrerequisitesMessages.length > 0) {
-          updatedSemesters[semesterName][index].conflict = unmetPrerequisitesMessages.join("\n");
-          globalConflictsFound = true;
-          console.log(
-            `Conflict for ${course.course_name} in ${semesterName}: ${
-              updatedSemesters[semesterName][index].conflict.replace("\n", "; ")
-            }`
-          );
-        }
+      // 3. Process the response and update the state
+      const conflictsMap = new Map();
+      result.missing_prerequisites.forEach(conflict => {
+        conflictsMap.set(conflict.course_id, conflict.message);
       });
 
-      // Add course names for next semester check
-      coursesInCurrentSemesterSet.forEach((courseName) => {
-        takenCoursesInPreviousSemesters.add(courseName);
-      });
-    });
+      const updatedSemestersWithConflicts = { ...currentSemestersData };
+      let conflictsFound = false;
 
-    console.log("Conflict check complete. Conflicts found:", globalConflictsFound);
-    return updatedSemesters;
-  };
+      // Iterate through the *original* data structure to update conflicts
+      Object.keys(updatedSemestersWithConflicts).forEach(semesterKey => {
+        updatedSemestersWithConflicts[semesterKey] = updatedSemestersWithConflicts[semesterKey].map(course => {
+          const conflictMessage = conflictsMap.get(course.course_id);
+          if (conflictMessage) {
+            conflictsFound = true;
+            // Make sure prerequisite statement is correctly referenced (backend sends 'message')
+             return { ...course, conflict: conflictMessage };
+             // Backend sends the full prereq statement now in 'message', was course.prerequisite_stmt before
+            // return { ...course, conflict: `Prerequisite Issue: ${course.prerequisite_stmt}` };
+          } else {
+            return { ...course, conflict: null }; // Clear previous conflicts if resolved
+          }
+        });
+      });
+
+       console.log("Conflicts found status:", conflictsFound);
+       console.log("Final state before setting:", updatedSemestersWithConflicts);
+
+      // Update the main state
+      setSemesters(updatedSemestersWithConflicts);
+
+    } catch (error) {
+      console.error("Failed to check prerequisites:", error);
+      setError(`Failed to check prerequisites: ${error.message}. Check backend connection.`);
+      // Optionally revert state or show a persistent error message
+      // For now, we'll just log it and keep the optimistic update
+      setSemesters(currentSemestersData); // Revert to state before API call if needed
+    }
+  }, [years, setError]); // Include dependencies for useCallback
 
   // ---------------------------
   // HELPER: Recommended Credits Tooltip
   // ---------------------------
   function getRecommendedCredits(semesterKey) {
+    // ... (keep existing implementation) ...
     const lower = semesterKey.toLowerCase();
     if (lower.includes("winter")) {
       return "Up to 4.5 credits";
@@ -319,6 +273,7 @@ function App() {
   // FETCH Courses from API
   // ---------------------------
   useEffect(() => {
+    // ... (keep existing implementation) ...
     const fetchCourses = async () => {
       try {
         setLoading(true);
@@ -337,13 +292,14 @@ function App() {
       }
     };
     fetchCourses();
-  }, []);
+  }, []); // Empty dependency array - runs once on mount
 
   // ---------------------------
   // DRAG & DROP HANDLERS
   // ---------------------------
   const handleDragStart = (event, course, fromSemester = null) => {
-    const draggedCourseData = {
+    // ... (keep existing implementation) ...
+     const draggedCourseData = {
       course_id: course.course_id,
       course_name: course.course_name,
       course_credits: course.course_credits,
@@ -352,6 +308,7 @@ function App() {
       course_num: course.course_num,
       attribute: course.attribute,
       attributeValue: course.attributeValue,
+      prerequisite_stmt: course.prerequisite_stmt
     };
     event.dataTransfer.setData(
       "text/plain",
@@ -363,51 +320,64 @@ function App() {
     event.preventDefault();
   };
 
+  // MODIFIED handleDrop
   const handleDrop = (event, targetSemester) => {
     event.preventDefault();
     const transferData = JSON.parse(event.dataTransfer.getData("text/plain"));
     const { course, fromSemester } = transferData;
-    const uniqueId = course.course_id || course.course_name;
+    const uniqueId = course.course_id; // Use course_id as primary identifier
 
-    setSemesters((prev) => {
-      let updated = JSON.parse(JSON.stringify(prev));
+    // Create the next potential state *before* calling setSemesters
+    let nextState = JSON.parse(JSON.stringify(semesters));
 
-      if (fromSemester && fromSemester !== targetSemester && updated[fromSemester]) {
-        updated[fromSemester] = updated[fromSemester].filter(
-          (c) => (c.course_id || c.course_name) !== uniqueId
-        );
-      }
-
-      if (!updated[targetSemester]) {
-        updated[targetSemester] = [];
-      }
-      const exists = updated[targetSemester].some(
-        (c) => (c.course_id || c.course_name) === uniqueId
+    // Remove from the original semester if moving
+    if (fromSemester && fromSemester !== targetSemester && nextState[fromSemester]) {
+      nextState[fromSemester] = nextState[fromSemester].filter(
+        (c) => c.course_id !== uniqueId
       );
-      if (!exists) {
-        const fullCourseData =
-          allCourses.find((c) => (c.course_id || c.course_name) === uniqueId) || course;
-        updated[targetSemester].push({ ...fullCourseData, conflict: null });
-      }
-      return checkCourseConflicts(updated);
-    });
+    }
+
+    // Add to the target semester if not already present
+    if (!nextState[targetSemester]) {
+      nextState[targetSemester] = [];
+    }
+    const exists = nextState[targetSemester].some(
+      (c) => c.course_id === uniqueId
+    );
+
+    if (!exists) {
+      // Find full course data from allCourses to ensure consistency
+      const fullCourseData = allCourses.find((c) => c.course_id === uniqueId) || course;
+      // Add with null conflict initially - backend will update
+      nextState[targetSemester].push({ ...fullCourseData, conflict: null });
+    }
+
+    // Call the API check with the potential next state
+    // The API function will handle calling setSemesters internally now
+    checkPrerequisitesWithAPI(nextState);
   };
 
+
+  // MODIFIED removeCourse
   const removeCourse = (semesterKey, courseToRemove) => {
-    const uniqueId = courseToRemove.course_id || courseToRemove.course_name;
-    setSemesters((prev) => {
-      let updated = JSON.parse(JSON.stringify(prev));
-      updated[semesterKey] = updated[semesterKey].filter(
-        (c) => (c.course_id || c.course_name) !== uniqueId
-      );
-      return checkCourseConflicts(updated);
-    });
+    const uniqueId = courseToRemove.course_id;
+
+    // Create the next potential state
+    let nextState = JSON.parse(JSON.stringify(semesters));
+    if (nextState[semesterKey]) {
+        nextState[semesterKey] = nextState[semesterKey].filter(
+            (c) => c.course_id !== uniqueId
+        );
+    }
+
+
+    // Call the API check with the potential next state
+    // The API function will handle calling setSemesters internally
+    checkPrerequisitesWithAPI(nextState);
   };
 
-  // ---------------------------
-  // FILTERING (Left Side)
-  // ---------------------------
-  const anyFilterApplied = () => {
+
+    const anyFilterApplied = () => {
     return (
       searchTerm.trim() !== "" ||
       categoryFilter !== "" ||
@@ -420,20 +390,26 @@ function App() {
   };
 
   const filteredCourses = allCourses.filter((course) => {
-    const categoryMatch = categoryFilter === "" || course.category === categoryFilter;
-    const creditsMatch = creditsFilter === "" || course.course_credits === creditsFilter;
+    // Ensure properties exist before accessing/checking
+    const categoryMatch = categoryFilter === "" || (course.category && course.category === categoryFilter);
+    const creditsMatch = creditsFilter === "" || (course.course_credits !== null && course.course_credits === creditsFilter);
     const courseNumberMatch =
       courseNumberFilter === "" ||
       (course.course_num &&
         course.course_num.toString().startsWith(courseNumberFilter));
-    const semesterMatch = semesterFilter === "" || course.semester === semesterFilter;
-    const attributeMatch = attributeFilter === "" || course.attribute === attributeFilter;
-    const attributeValueMatch =
-      attributeValueFilter === "" || course.attributeValue === attributeValueFilter;
+
+    // Add checks if these are expected filter criteria from the fetched data
+     const semesterMatch = semesterFilter === "" || (course.semester && course.semester === semesterFilter); // Assuming 'semester' property exists
+     const attributeMatch = attributeFilter === "" || (course.attribute && course.attribute === attributeFilter); // Assuming 'attribute' property exists
+     const attributeValueMatch = attributeValueFilter === "" || (course.attributeValue && course.attributeValue === attributeValueFilter); // Assuming 'attributeValue' property exists
+
     const searchTermMatch =
       searchTerm.trim() === "" ||
       (course.course_name &&
-        course.course_name.toLowerCase().includes(searchTerm.toLowerCase()));
+        course.course_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (course.catalog_name && // Also search by catalog name
+        course.catalog_name.toLowerCase().includes(searchTerm.toLowerCase()));
+
     return (
       categoryMatch &&
       creditsMatch &&
@@ -450,7 +426,7 @@ function App() {
   ].sort();
   const uniqueCredits = [
     ...new Set(allCourses.map((c) => c.course_credits).filter((v) => v !== null && v !== undefined)),
-  ].sort((a, b) => a - b);
+  ].sort((a, b) => a - b); // Ensure numerical sort
 
   const toggleCategory = (categoryKey) => {
     setOpenCategories((prev) => {
@@ -464,46 +440,48 @@ function App() {
     });
   };
 
-  // ---------------------------
-  // TOGGLE FUNCTIONS for Winter & Summer
-  // ---------------------------
+
+  // MODIFIED toggleWinter
   const toggleWinter = (year) => {
     setWinterVisible((prev) => {
       const newVisibility = !prev[year];
-      if (prev[year]) {
-        // If currently visible, toggling off: remove courses
-        setSemesters((prevSems) => {
-          const updated = { ...prevSems };
-          updated[year + "Winter"] = [];
-          return checkCourseConflicts(updated);
-        });
+      if (prev[year]) { // If currently visible, toggling OFF
+        // Create the next potential state (removing courses)
+        let nextState = JSON.parse(JSON.stringify(semesters));
+        nextState[year + "Winter"] = [];
+        // Trigger check *after* calculating the state change
+        checkPrerequisitesWithAPI(nextState);
+      } else {
+          // If toggling ON, no courses change, just visibility
+          // No need to call checkPrerequisitesWithAPI here
       }
       return { ...prev, [year]: newVisibility };
     });
   };
 
+  // MODIFIED toggleSummer
   const toggleSummer = (year) => {
     setSummerVisible((prev) => {
       const newVisibility = !prev[year];
-      if (prev[year]) {
-        // If currently visible, toggling off: remove courses
-        setSemesters((prevSems) => {
-          const updated = { ...prevSems };
-          updated[year + "Summer"] = [];
-          return checkCourseConflicts(updated);
-        });
+      if (prev[year]) { // If currently visible, toggling OFF
+         // Create the next potential state (removing courses)
+        let nextState = JSON.parse(JSON.stringify(semesters));
+        nextState[year + "Summer"] = [];
+        // Trigger check *after* calculating the state change
+        checkPrerequisitesWithAPI(nextState);
+      } else {
+         // If toggling ON, no courses change, just visibility
+         // No need to call checkPrerequisitesWithAPI here
       }
       return { ...prev, [year]: newVisibility };
     });
   };
 
-  // ---------------------------
-  // ADD A NEW YEAR
-  // ---------------------------
+
   const addYear = () => {
     // Calculate the new year number from the current years array.
     const yearNums = years.map((y) => Number(y.replace("Year", "")));
-    const maxYearNum = Math.max(...yearNums);
+    const maxYearNum = yearNums.length > 0 ? Math.max(...yearNums) : 0; // Handle empty case
     const newYear = "Year" + (maxYearNum + 1);
 
     setYears((prev) => [...prev, newYear]);
@@ -520,27 +498,10 @@ function App() {
     }));
   };
 
-  // ---------------------------
-  // REMOVE A SPECIFIC YEAR
-  // ---------------------------
+  // MODIFIED removeYear
   const removeYear = (year) => {
-    // (Optional: prevent removal of base years if desired)
-    // if (["Year1", "Year2", "Year3", "Year4"].includes(year)) return;
 
-    // Remove the year from the 'years' list.
-    setYears((prev) => prev.filter((y) => y !== year));
-
-    // Remove its semesters from the state.
-    setSemesters((prev) => {
-      const updated = { ...prev };
-      delete updated[year + "Fall"];
-      delete updated[year + "Winter"];
-      delete updated[year + "Spring"];
-      delete updated[year + "Summer"];
-      return checkCourseConflicts(updated);
-    });
-
-    // Remove from toggle states.
+    // Remove from toggle states first
     setWinterVisible((prev) => {
       const updated = { ...prev };
       delete updated[year];
@@ -551,7 +512,21 @@ function App() {
       delete updated[year];
       return updated;
     });
+
+    // Calculate the next state *after* removing the year's semesters
+    let nextState = JSON.parse(JSON.stringify(semesters));
+    delete nextState[year + "Fall"];
+    delete nextState[year + "Winter"];
+    delete nextState[year + "Spring"];
+    delete nextState[year + "Summer"];
+
+    // Update the years list
+    setYears((prev) => prev.filter((y) => y !== year));
+
+    // Check prerequisites with the state *after* removal
+    checkPrerequisitesWithAPI(nextState);
   };
+
 
   // ---------------------------
   // RENDER
@@ -560,7 +535,7 @@ function App() {
     <div className="container">
       {/* LEFT COLUMN */}
       <div className="left-column">
-        <div className="degree-requirements">
+         <div className="degree-requirements">
           <h2>Degree Requirements</h2>
           <select
             value={selectedDegree}
@@ -688,18 +663,18 @@ function App() {
           )}
         </div>
 
-        {/* Course Search */}
         <div className="course-search">
           <h2>Course Search</h2>
           <input
             type="text"
             className="search-input"
-            placeholder="Search for a course..."
+            placeholder="Search course name or ID..." // Updated placeholder
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="filters">
-            <select
+             {/* Ensure filter options match available data properties */}
+             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="filter-dropdown"
@@ -715,6 +690,7 @@ function App() {
               value={creditsFilter}
               onChange={(e) => {
                 const val = e.target.value;
+                // Handle empty string correctly
                 setCreditsFilter(val === "" ? "" : parseInt(val, 10));
               }}
               className="filter-dropdown"
@@ -737,43 +713,31 @@ function App() {
               <option value="3">3xx</option>
               <option value="4">4xx</option>
             </select>
+            {/* Add back other filters when they're created */}
+            {/*
             <select
               value={semesterFilter}
               onChange={(e) => setSemesterFilter(e.target.value)}
               className="filter-dropdown"
             >
-              <option value="">Semester</option>
-              <option value="Fall">Fall</option>
-              <option value="Spring">Spring</option>
+             ...
             </select>
-            <select
+             <select
               value={attributeFilter}
-              onChange={(e) => setAttributeFilter(e.target.value)}
+               onChange={(e) => setAttributeFilter(e.target.value)}
               className="filter-dropdown"
             >
-              <option value="">Attribute</option>
-              <option value="First Year Experience">First Year Experience</option>
-              <option value="General Education Program">General Education Program</option>
-              <option value="NONE">None</option>
+             ...
             </select>
             <select
               value={attributeValueFilter}
-              onChange={(e) => setAttributeValueFilter(e.target.value)}
+               onChange={(e) => setAttributeValueFilter(e.target.value)}
               className="filter-dropdown"
-              disabled={
-                attributeFilter === "" ||
-                attributeFilter === "NONE" ||
-                attributeFilter === "First Year Experience"
-              }
+              disabled={...}
             >
-              <option value="">Attribute Value</option>
-              {attributeFilter === "General Education Program" && (
-                <>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Science Plus Lab">Science Plus Lab</option>
-                </>
-              )}
+             ...
             </select>
+            */}
           </div>
           <div className="search-results">
             {loading && <p>Loading courses...</p>}
@@ -783,12 +747,16 @@ function App() {
               anyFilterApplied() &&
               filteredCourses.map((course) => (
                 <div
-                  key={course.course_id || course.course_name}
+                  // Use course_id for key consistency
+                  key={course.course_id}
                   className="result-item"
                   draggable
                   onDragStart={(e) => handleDragStart(e, course)}
+                  // Add tooltip for course description if available
+                  title={course.course_desc || ''}
                 >
-                  <strong>{course.course_name}</strong> ({course.catalog_name})
+                   {/* Display catalog name and course name */}
+                  <strong>{course.catalog_name || `Course ID: ${course.course_id}`}</strong>: {course.course_name || 'No Name'} ({course.course_credits || 'N/A'} Cr)
                 </div>
               ))}
             {!loading &&
@@ -802,6 +770,7 @@ function App() {
             )}
           </div>
         </div>
+
       </div>
 
       {/* RIGHT COLUMN: MULTI-YEAR PLANNER */}
@@ -809,17 +778,20 @@ function App() {
         <h2>Semesters</h2>
         {years.map((year) => (
           <div className="year-container" key={year}>
-            <h3 className="year-header">{yearMap[year]}</h3>
+            <div className="year-header-controls"> {/* Wrapper for header and button */}
+                <h3 className="year-header">{yearMap[year]}</h3>
+                {/* Show Remove button only for non-base years */}
+                {!initialYears.includes(year) && (
+                <button
+                    className="remove-year-button"
+                    onClick={() => removeYear(year)}
+                    title={`Remove ${yearMap[year]}`} // Tooltip for clarity
+                >
+                    × {/* Use a simple 'x' symbol */}
+                </button>
+                )}
+            </div>
 
-            {/* If this is an optional year (not one of the base 4), show a Remove button */}
-            {!["Year1", "Year2", "Year3", "Year4"].includes(year) && (
-              <button
-                className="remove-year-button"
-                onClick={() => removeYear(year)}
-              >
-                Remove {yearMap[year]}
-              </button>
-            )}
 
             {/* FALL (Always visible) */}
             <div
@@ -827,22 +799,31 @@ function App() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, year + "Fall")}
             >
-              <div className="semester-title">Fall</div>
-              <div className="question-mark-container">
-                <span className="question-mark">?</span>
-                <span className="tooltip-text">{getRecommendedCredits(year + "Fall")}</span>
+              <div className="semester-title-container"> {/* Wrap title and tooltip */}
+                <div className="semester-title">Fall</div>
+                <div className="question-mark-container">
+                  <span className="question-mark">?</span>
+                  <span className="tooltip-text">{getRecommendedCredits(year + "Fall")}</span>
+                </div>
               </div>
               <div className="courses">
                 {(semesters[year + "Fall"] || []).map((course, idx) => (
                   <div
-                    key={year + "Fall-" + (course.course_id || course.course_name) + "-" + idx}
+                    key={year + "Fall-" + course.course_id + "-" + idx} // Use course_id
+                    // Apply conflict class if conflict exists and is not null/empty
                     className={`course-box ${course.conflict ? "conflict" : ""}`}
                     draggable
                     onDragStart={(evt) => handleDragStart(evt, course, year + "Fall")}
-                    title={course.conflict || ""}
+                    // Display conflict message in tooltip
+                    title={course.conflict || `${course.catalog_name}: ${course.course_name}`} // Show course name if no conflict
                   >
-                    <strong>{course.course_name}</strong>
-                    <button className="remove-btn" onClick={() => removeCourse(year + "Fall", course)}>
+                     {/* Display catalog name */}
+                    <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
+                    <button
+                      className="remove-btn"
+                      onClick={() => removeCourse(year + "Fall", course)}
+                      title="Remove Course" // Add tooltip
+                      >
                       ✖
                     </button>
                   </div>
@@ -851,7 +832,7 @@ function App() {
             </div>
 
             {/* WINTER Toggle */}
-            <div className="horizontal-line-container" onClick={() => toggleWinter(year)}>
+            <div className="horizontal-line-container" onClick={() => toggleWinter(year)} title={winterVisible[year] ? "Hide Winter" : "Show Winter"}>
               <div className="plus-circle">{winterVisible[year] ? "–" : "+"}</div>
             </div>
             {winterVisible[year] && (
@@ -860,24 +841,27 @@ function App() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, year + "Winter")}
               >
-                <div className="semester-title">Winter</div>
-                <div className="question-mark-container">
-                  <span className="question-mark">?</span>
-                  <span className="tooltip-text">{getRecommendedCredits(year + "Winter")}</span>
+                 <div className="semester-title-container">
+                    <div className="semester-title">Winter</div>
+                    <div className="question-mark-container">
+                    <span className="question-mark">?</span>
+                    <span className="tooltip-text">{getRecommendedCredits(year + "Winter")}</span>
+                    </div>
                 </div>
                 <div className="courses">
                   {(semesters[year + "Winter"] || []).map((course, idx) => (
                     <div
-                      key={year + "Winter-" + (course.course_id || course.course_name) + "-" + idx}
-                      className={`course-box ${course.conflict ? "conflict" : ""}`}
-                      draggable
-                      onDragStart={(evt) => handleDragStart(evt, course, year + "Winter")}
-                      title={course.conflict || ""}
+                       key={year + "Winter-" + course.course_id + "-" + idx}
+                       className={`course-box ${course.conflict ? "conflict" : ""}`}
+                       draggable
+                       onDragStart={(evt) => handleDragStart(evt, course, year + "Winter")}
+                       title={course.conflict || `${course.catalog_name}: ${course.course_name}`}
                     >
-                      <strong>{course.course_name}</strong>
+                      <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
                       <button
                         className="remove-btn"
                         onClick={() => removeCourse(year + "Winter", course)}
+                         title="Remove Course"
                       >
                         ✖
                       </button>
@@ -893,24 +877,27 @@ function App() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, year + "Spring")}
             >
-              <div className="semester-title">Spring</div>
-              <div className="question-mark-container">
-                <span className="question-mark">?</span>
-                <span className="tooltip-text">{getRecommendedCredits(year + "Spring")}</span>
-              </div>
+               <div className="semester-title-container">
+                    <div className="semester-title">Spring</div>
+                    <div className="question-mark-container">
+                    <span className="question-mark">?</span>
+                    <span className="tooltip-text">{getRecommendedCredits(year + "Spring")}</span>
+                    </div>
+                </div>
               <div className="courses">
                 {(semesters[year + "Spring"] || []).map((course, idx) => (
-                  <div
-                    key={year + "Spring-" + (course.course_id || course.course_name) + "-" + idx}
-                    className={`course-box ${course.conflict ? "conflict" : ""}`}
-                    draggable
-                    onDragStart={(evt) => handleDragStart(evt, course, year + "Spring")}
-                    title={course.conflict || ""}
-                  >
-                    <strong>{course.course_name}</strong>
+                   <div
+                       key={year + "Spring-" + course.course_id + "-" + idx}
+                       className={`course-box ${course.conflict ? "conflict" : ""}`}
+                       draggable
+                       onDragStart={(evt) => handleDragStart(evt, course, year + "Spring")}
+                       title={course.conflict || `${course.catalog_name}: ${course.course_name}`}
+                    >
+                     <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
                     <button
                       className="remove-btn"
                       onClick={() => removeCourse(year + "Spring", course)}
+                       title="Remove Course"
                     >
                       ✖
                     </button>
@@ -920,7 +907,7 @@ function App() {
             </div>
 
             {/* SUMMER Toggle */}
-            <div className="horizontal-line-container" onClick={() => toggleSummer(year)}>
+            <div className="horizontal-line-container" onClick={() => toggleSummer(year)} title={summerVisible[year] ? "Hide Summer" : "Show Summer"}>
               <div className="plus-circle">{summerVisible[year] ? "–" : "+"}</div>
             </div>
             {summerVisible[year] && (
@@ -929,24 +916,27 @@ function App() {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, year + "Summer")}
               >
-                <div className="semester-title">Summer</div>
-                <div className="question-mark-container">
-                  <span className="question-mark">?</span>
-                  <span className="tooltip-text">{getRecommendedCredits(year + "Summer")}</span>
+                <div className="semester-title-container">
+                    <div className="semester-title">Summer</div>
+                    <div className="question-mark-container">
+                    <span className="question-mark">?</span>
+                    <span className="tooltip-text">{getRecommendedCredits(year + "Summer")}</span>
+                    </div>
                 </div>
                 <div className="courses">
                   {(semesters[year + "Summer"] || []).map((course, idx) => (
                     <div
-                      key={year + "Summer-" + (course.course_id || course.course_name) + "-" + idx}
+                      key={year + "Summer-" + course.course_id + "-" + idx}
                       className={`course-box ${course.conflict ? "conflict" : ""}`}
                       draggable
                       onDragStart={(evt) => handleDragStart(evt, course, year + "Summer")}
-                      title={course.conflict || ""}
+                      title={course.conflict || `${course.catalog_name}: ${course.course_name}`}
                     >
-                      <strong>{course.course_name}</strong>
+                      <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
                       <button
                         className="remove-btn"
                         onClick={() => removeCourse(year + "Summer", course)}
+                         title="Remove Course"
                       >
                         ✖
                       </button>
@@ -964,8 +954,8 @@ function App() {
             + Add Another Year
           </button>
         </div>
-      </div>
-    </div>
+      </div> {/* End Right Column */}
+    </div> // End Container
   );
 }
 
