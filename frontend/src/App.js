@@ -3,18 +3,20 @@ import "./App.css";
 
 const API_BASE_URL = "http://localhost:5000";
 
+// Start with the initial 4 base years
 const initialYears = ["Year1", "Year2", "Year3", "Year4"];
 
 function App() {
+  // State declarations
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDegree, setSelectedDegree] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [creditsFilter, setCreditsFilter] = useState("");
   const [courseNumberFilter, setCourseNumberFilter] = useState("");
-  const [semesterFilter, setSemesterFilter] = useState("");
-  const [attributeFilter, setAttributeFilter] = useState("");
-  const [attributeValueFilter, setAttributeValueFilter] = useState("");
-  const [openCategories, setOpenCategories] = useState(new Set());
+  const [semesterFilter, setSemesterFilter] = useState(""); // Keep for potential future use
+  const [attributeFilter, setAttributeFilter] = useState(""); // Keep for potential future use
+  const [attributeValueFilter, setAttributeValueFilter] = useState(""); // Keep for potential future use
+  const [openCategories, setOpenCategories] = useState(new Set()); // For degree req accordion
   const [allCourses, setAllCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,12 +45,16 @@ function App() {
     });
     return init;
   });
+  const [expandedCourses, setExpandedCourses] = useState(new Set()); // Tracks expanded course items in planner
+
+  // Derived state/maps
   const yearMap = years.reduce((acc, year) => {
     acc[year] = "Year " + year.substring(4);
     return acc;
   }, {});
-  // ... (Keep degreeRequirements data) ...
-    const degreeRequirements = {
+
+  // Static Data (Degree Requirements)
+  const degreeRequirements = {
     "Computer Science": {
       notes: [
         "Minimum 120 credits total for degree.",
@@ -170,28 +176,32 @@ function App() {
           "A maximum of two MATH courses from this list may be used towards the Technical Elective requirement.",
       },
     },
+    // Add other degree requirements here...
   };
 
+  // --- Functions ---
 
-  // ---------------------------
-  // NEW: BACKEND CONFLICT CHECKING
-  // ---------------------------
+  // Toggle Course Expansion in Planner
+  const toggleCourseExpansion = (itemKey) => {
+    setExpandedCourses(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(itemKey)) {
+            newSet.delete(itemKey);
+        } else {
+            newSet.add(itemKey);
+        }
+        return newSet;
+    });
+  };
+
+  // Backend Conflict Checking
   const checkPrerequisitesWithAPI = useCallback(async (currentSemestersData) => {
-    // 1. Define the chronological order of semesters based on current years
     const semesterOrder = years.flatMap(year => [
-        `${year}Fall`,
-        `${year}Winter`,
-        `${year}Spring`,
-        `${year}Summer`
+        `${year}Fall`, `${year}Winter`, `${year}Spring`, `${year}Summer`
     ]);
-
-    // 2. Transform data for the backend
     const payload = {
       semesters: semesterOrder.map(semesterKey => ({
-        // Use the semester key as the name for simplicity in debugging,
-        // the backend primarily cares about the order.
         name: semesterKey,
-        // Ensure we only send course IDs
         courses: (currentSemestersData[semesterKey] || []).map(course => course.course_id)
       }))
     };
@@ -201,9 +211,7 @@ function App() {
     try {
       const response = await fetch(`${API_BASE_URL}/plan/check-prerequisites`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -215,65 +223,42 @@ function App() {
       const result = await response.json();
       console.log("Received from backend:", result);
 
-      // 3. Process the response and update the state
       const conflictsMap = new Map();
       result.missing_prerequisites.forEach(conflict => {
         conflictsMap.set(conflict.course_id, conflict.message);
       });
 
       const updatedSemestersWithConflicts = { ...currentSemestersData };
-      let conflictsFound = false;
 
-      // Iterate through the *original* data structure to update conflicts
       Object.keys(updatedSemestersWithConflicts).forEach(semesterKey => {
         updatedSemestersWithConflicts[semesterKey] = updatedSemestersWithConflicts[semesterKey].map(course => {
           const conflictMessage = conflictsMap.get(course.course_id);
-          if (conflictMessage) {
-            conflictsFound = true;
-            // Make sure prerequisite statement is correctly referenced (backend sends 'message')
-             return { ...course, conflict: conflictMessage };
-             // Backend sends the full prereq statement now in 'message', was course.prerequisite_stmt before
-            // return { ...course, conflict: `Prerequisite Issue: ${course.prerequisite_stmt}` };
-          } else {
-            return { ...course, conflict: null }; // Clear previous conflicts if resolved
-          }
+          // Update conflict status, preserve other course data
+          return { ...course, conflict: conflictMessage || null };
         });
       });
 
-       console.log("Conflicts found status:", conflictsFound);
-       console.log("Final state before setting:", updatedSemestersWithConflicts);
-
-      // Update the main state
+      console.log("Final state before setting:", updatedSemestersWithConflicts);
       setSemesters(updatedSemestersWithConflicts);
 
     } catch (error) {
       console.error("Failed to check prerequisites:", error);
-      setError(`Failed to check prerequisites: ${error.message}. Check backend connection.`);
-      // Optionally revert state or show a persistent error message
-      // For now, we'll just log it and keep the optimistic update
-      setSemesters(currentSemestersData); // Revert to state before API call if needed
+      setError(`Prerequisite check failed: ${error.message}. Check backend connection.`);
+      // Optionally revert, but current approach keeps potentially invalid state and shows error
+      // setSemesters(currentSemestersData); // Uncomment to revert on error
     }
-  }, [years, setError]); // Include dependencies for useCallback
+  }, [years, setError]); // Added setError dependency
 
-  // ---------------------------
-  // HELPER: Recommended Credits Tooltip
-  // ---------------------------
+  // Recommended Credits Tooltip Helper
   function getRecommendedCredits(semesterKey) {
-    // ... (keep existing implementation) ...
     const lower = semesterKey.toLowerCase();
-    if (lower.includes("winter")) {
-      return "Up to 4.5 credits";
-    } else if (lower.includes("summer")) {
-      return "Up to 16 credits";
-    }
+    if (lower.includes("winter")) return "Up to 4.5 credits";
+    if (lower.includes("summer")) return "Up to 16 credits";
     return "Recommended credits: 12-19";
   }
 
-  // ---------------------------
-  // FETCH Courses from API
-  // ---------------------------
+  // Fetch Courses from API on Mount
   useEffect(() => {
-    // ... (keep existing implementation) ...
     const fetchCourses = async () => {
       try {
         setLoading(true);
@@ -283,10 +268,21 @@ function App() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        setAllCourses(data);
+        // Ensure essential fields are present or defaulted
+        const sanitizedData = data.map(course => ({
+          ...course,
+          course_id: course.course_id ?? `missing_id_${Math.random()}`,
+          catalog_name: course.catalog_name ?? 'Unknown ID',
+          course_name: course.course_name ?? 'Unnamed Course',
+          course_credits: course.course_credits ?? 0,
+          course_desc: course.course_desc ?? '',
+          prerequisite_stmt: course.prerequisite_stmt ?? ''
+          // Add defaults for other fields if necessary
+        }));
+        setAllCourses(sanitizedData);
       } catch (e) {
         console.error("Failed to fetch courses:", e);
-        setError("Failed to load courses. Please ensure the backend is running.");
+        setError("Failed to load courses. Please ensure the backend is running and returning valid data.");
       } finally {
         setLoading(false);
       }
@@ -294,44 +290,61 @@ function App() {
     fetchCourses();
   }, []); // Empty dependency array - runs once on mount
 
-  // ---------------------------
-  // DRAG & DROP HANDLERS
-  // ---------------------------
+  // Drag & Drop Handlers
   const handleDragStart = (event, course, fromSemester = null) => {
-    // ... (keep existing implementation) ...
      const draggedCourseData = {
       course_id: course.course_id,
       course_name: course.course_name,
       course_credits: course.course_credits,
-      category: course.category,
+      category: course.category, // May not always be present
       catalog_name: course.catalog_name,
-      course_num: course.course_num,
-      attribute: course.attribute,
-      attributeValue: course.attributeValue,
-      prerequisite_stmt: course.prerequisite_stmt
+      course_num: course.course_num, // May not always be present
+      attribute: course.attribute, // May not always be present
+      attributeValue: course.attributeValue, // May not always be present
+      prerequisite_stmt: course.prerequisite_stmt,
+      course_desc: course.course_desc
     };
     event.dataTransfer.setData(
       "text/plain",
       JSON.stringify({ course: draggedCourseData, fromSemester })
     );
+     // Optional: Add a visual cue
+     // event.currentTarget.style.opacity = '0.5';
   };
 
   const handleDragOver = (event) => {
-    event.preventDefault();
+    event.preventDefault(); // Necessary to allow dropping
+    // Optional: Add visual feedback for drop target
+    // event.currentTarget.classList.add('drag-over');
   };
 
-  // MODIFIED handleDrop
+   // Optional: Remove visual feedback on drag leave
+  // const handleDragLeave = (event) => {
+  //   event.currentTarget.classList.remove('drag-over');
+  // };
+
   const handleDrop = (event, targetSemester) => {
     event.preventDefault();
+    // event.currentTarget.classList.remove('drag-over'); // Clean up visual feedback
+    // event.dataTransfer.dropEffect = "move"; // Indicate the operation type
+
     const transferData = JSON.parse(event.dataTransfer.getData("text/plain"));
     const { course, fromSemester } = transferData;
-    const uniqueId = course.course_id; // Use course_id as primary identifier
+    const uniqueId = course.course_id;
 
-    // Create the next potential state *before* calling setSemesters
+    // Avoid dropping onto itself (if dragging within the same semester list)
+    if (fromSemester === targetSemester) return;
+
     let nextState = JSON.parse(JSON.stringify(semesters));
 
-    // Remove from the original semester if moving
-    if (fromSemester && fromSemester !== targetSemester && nextState[fromSemester]) {
+    // Remove from the original semester if moving & clean up expansion state
+    if (fromSemester && nextState[fromSemester]) {
+      const oldItemKey = `${fromSemester}-${uniqueId}`;
+      setExpandedCourses(prev => {
+         const newSet = new Set(prev);
+         newSet.delete(oldItemKey);
+         return newSet;
+      });
       nextState[fromSemester] = nextState[fromSemester].filter(
         (c) => c.course_id !== uniqueId
       );
@@ -339,30 +352,41 @@ function App() {
 
     // Add to the target semester if not already present
     if (!nextState[targetSemester]) {
-      nextState[targetSemester] = [];
+      nextState[targetSemester] = []; // Initialize if semester doesn't exist (shouldn't happen with current logic)
     }
-    const exists = nextState[targetSemester].some(
-      (c) => c.course_id === uniqueId
-    );
+    const exists = nextState[targetSemester].some((c) => c.course_id === uniqueId);
 
     if (!exists) {
-      // Find full course data from allCourses to ensure consistency
+      // Find the most complete course data from `allCourses`
       const fullCourseData = allCourses.find((c) => c.course_id === uniqueId) || course;
-      // Add with null conflict initially - backend will update
+      // Add with conflict initially null, backend will check
       nextState[targetSemester].push({ ...fullCourseData, conflict: null });
+    } else {
+      // Handle case where course already exists in target (e.g., show message or prevent drop)
+      console.warn(`Course ${uniqueId} already exists in ${targetSemester}`);
+      // Potentially revert the removal from the source if preventing drop:
+      // checkPrerequisitesWithAPI(semesters); // Re-check original state
+      // return; // Prevent update if exists
     }
 
     // Call the API check with the potential next state
-    // The API function will handle calling setSemesters internally now
     checkPrerequisitesWithAPI(nextState);
   };
 
 
-  // MODIFIED removeCourse
+  // Remove Course Handler (cleans expansion state)
   const removeCourse = (semesterKey, courseToRemove) => {
     const uniqueId = courseToRemove.course_id;
+    const itemKey = `${semesterKey}-${uniqueId}`;
 
-    // Create the next potential state
+    // Clean up expansion state
+    setExpandedCourses(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemKey);
+        return newSet;
+    });
+
+    // Prepare next state for prerequisite check
     let nextState = JSON.parse(JSON.stringify(semesters));
     if (nextState[semesterKey]) {
         nextState[semesterKey] = nextState[semesterKey].filter(
@@ -370,64 +394,58 @@ function App() {
         );
     }
 
-
-    // Call the API check with the potential next state
-    // The API function will handle calling setSemesters internally
     checkPrerequisitesWithAPI(nextState);
   };
 
-
-    const anyFilterApplied = () => {
+  // Filtering Logic
+  const anyFilterApplied = () => {
     return (
       searchTerm.trim() !== "" ||
       categoryFilter !== "" ||
       creditsFilter !== "" ||
-      courseNumberFilter !== "" ||
-      semesterFilter !== "" ||
-      attributeFilter !== "" ||
-      attributeValueFilter !== ""
+      courseNumberFilter !== ""
+      // Add other filters here if re-enabled
+      // semesterFilter !== "" ||
+      // attributeFilter !== "" ||
+      // attributeValueFilter !== ""
     );
   };
 
   const filteredCourses = allCourses.filter((course) => {
-    // Ensure properties exist before accessing/checking
     const categoryMatch = categoryFilter === "" || (course.category && course.category === categoryFilter);
-    const creditsMatch = creditsFilter === "" || (course.course_credits !== null && course.course_credits === creditsFilter);
-    const courseNumberMatch =
-      courseNumberFilter === "" ||
-      (course.course_num &&
-        course.course_num.toString().startsWith(courseNumberFilter));
-
-    // Add checks if these are expected filter criteria from the fetched data
-     const semesterMatch = semesterFilter === "" || (course.semester && course.semester === semesterFilter); // Assuming 'semester' property exists
-     const attributeMatch = attributeFilter === "" || (course.attribute && course.attribute === attributeFilter); // Assuming 'attribute' property exists
-     const attributeValueMatch = attributeValueFilter === "" || (course.attributeValue && course.attributeValue === attributeValueFilter); // Assuming 'attributeValue' property exists
+    // Ensure credits comparison works with number or empty string
+    const creditsMatch = creditsFilter === "" || (course.course_credits !== null && course.course_credits === Number(creditsFilter));
+    const courseNumberMatch = courseNumberFilter === "" || (course.course_num && course.course_num.toString().startsWith(courseNumberFilter));
+    // Add checks for other filters if re-enabled, ensuring property exists
+    // const semesterMatch = semesterFilter === "" || (course.semester && course.semester === semesterFilter);
+    // const attributeMatch = attributeFilter === "" || (course.attribute && course.attribute === attributeFilter);
+    // const attributeValueMatch = attributeValueFilter === "" || (course.attributeValue && course.attributeValue === attributeValueFilter);
 
     const searchTermMatch =
       searchTerm.trim() === "" ||
-      (course.course_name &&
-        course.course_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (course.catalog_name && // Also search by catalog name
-        course.catalog_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      (course.course_name && course.course_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (course.catalog_name && course.catalog_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
       categoryMatch &&
       creditsMatch &&
       courseNumberMatch &&
-      semesterMatch &&
-      attributeMatch &&
-      attributeValueMatch &&
+      // semesterMatch &&
+      // attributeMatch &&
+      // attributeValueMatch &&
       searchTermMatch
     );
   });
 
+  // Get Unique Values for Filters
   const uniqueCategories = [
-    ...new Set(allCourses.map((c) => c.category).filter(Boolean)),
+    ...new Set(allCourses.map((c) => c.category).filter(Boolean)), // Filter out null/undefined
   ].sort();
   const uniqueCredits = [
     ...new Set(allCourses.map((c) => c.course_credits).filter((v) => v !== null && v !== undefined)),
-  ].sort((a, b) => a - b); // Ensure numerical sort
+  ].sort((a, b) => a - b); // Numerical sort
 
+  // Toggle Degree Requirement Category Visibility
   const toggleCategory = (categoryKey) => {
     setOpenCategories((prev) => {
       const newOpenCategories = new Set(prev);
@@ -440,55 +458,46 @@ function App() {
     });
   };
 
-
-  // MODIFIED toggleWinter
-  const toggleWinter = (year) => {
-    setWinterVisible((prev) => {
+  // Toggle Optional Semester Visibility (cleans expansion state)
+  const toggleOptionalSemester = (year, season, isVisibleState, setVisibleState, checkPrerequisites) => {
+     setVisibleState((prev) => {
+      const semesterKey = year + season;
       const newVisibility = !prev[year];
-      if (prev[year]) { // If currently visible, toggling OFF
-        // Create the next potential state (removing courses)
+
+      if (!newVisibility) { // Toggling OFF (hiding)
+        // Clean up expansion state for courses being hidden
+        setExpandedCourses(currentExpanded => {
+           const nextExpanded = new Set(currentExpanded);
+           (semesters[semesterKey] || []).forEach(course => {
+               nextExpanded.delete(`${semesterKey}-${course.course_id}`);
+           });
+           return nextExpanded;
+        });
+
+        // Prepare state with the semester's courses removed for checking
         let nextState = JSON.parse(JSON.stringify(semesters));
-        nextState[year + "Winter"] = [];
-        // Trigger check *after* calculating the state change
-        checkPrerequisitesWithAPI(nextState);
-      } else {
-          // If toggling ON, no courses change, just visibility
-          // No need to call checkPrerequisitesWithAPI here
+        nextState[semesterKey] = [];
+        checkPrerequisites(nextState); // Call the API check
       }
+      // No check needed when toggling ON (just changing visibility)
+
       return { ...prev, [year]: newVisibility };
     });
   };
 
-  // MODIFIED toggleSummer
-  const toggleSummer = (year) => {
-    setSummerVisible((prev) => {
-      const newVisibility = !prev[year];
-      if (prev[year]) { // If currently visible, toggling OFF
-         // Create the next potential state (removing courses)
-        let nextState = JSON.parse(JSON.stringify(semesters));
-        nextState[year + "Summer"] = [];
-        // Trigger check *after* calculating the state change
-        checkPrerequisitesWithAPI(nextState);
-      } else {
-         // If toggling ON, no courses change, just visibility
-         // No need to call checkPrerequisitesWithAPI here
-      }
-      return { ...prev, [year]: newVisibility };
-    });
-  };
+  const toggleWinter = (year) => toggleOptionalSemester(year, "Winter", winterVisible, setWinterVisible, checkPrerequisitesWithAPI);
+  const toggleSummer = (year) => toggleOptionalSemester(year, "Summer", summerVisible, setSummerVisible, checkPrerequisitesWithAPI);
 
 
+  // Add/Remove Year Handlers (clean expansion state)
   const addYear = () => {
-    // Calculate the new year number from the current years array.
     const yearNums = years.map((y) => Number(y.replace("Year", "")));
-    const maxYearNum = yearNums.length > 0 ? Math.max(...yearNums) : 0; // Handle empty case
+    const maxYearNum = yearNums.length > 0 ? Math.max(...yearNums) : 0;
     const newYear = "Year" + (maxYearNum + 1);
 
     setYears((prev) => [...prev, newYear]);
-    // Initialize toggles for the new year.
     setWinterVisible((prev) => ({ ...prev, [newYear]: false }));
     setSummerVisible((prev) => ({ ...prev, [newYear]: false }));
-    // Initialize the 4 semester keys for the new year.
     setSemesters((prev) => ({
       ...prev,
       [newYear + "Fall"]: [],
@@ -496,31 +505,37 @@ function App() {
       [newYear + "Spring"]: [],
       [newYear + "Summer"]: [],
     }));
+     // No API check needed for adding an empty year
   };
 
-  // MODIFIED removeYear
   const removeYear = (year) => {
+     // Optional: Prevent removal of base years
+     // if (initialYears.includes(year)) return;
 
-    // Remove from toggle states first
-    setWinterVisible((prev) => {
-      const updated = { ...prev };
-      delete updated[year];
-      return updated;
-    });
-    setSummerVisible((prev) => {
-      const updated = { ...prev };
-      delete updated[year];
-      return updated;
+    // Clean up expansion state for all semesters in this year
+    setExpandedCourses(prev => {
+        const nextExpanded = new Set(prev);
+        const keysToRemove = [`${year}Fall`, `${year}Winter`, `${year}Spring`, `${year}Summer`];
+        keysToRemove.forEach(semesterKey => {
+            (semesters[semesterKey] || []).forEach(course => {
+                nextExpanded.delete(`${semesterKey}-${course.course_id}`);
+            });
+        });
+        return nextExpanded;
     });
 
-    // Calculate the next state *after* removing the year's semesters
+    // Remove from visibility toggles
+    setWinterVisible((prev) => { const updated = { ...prev }; delete updated[year]; return updated; });
+    setSummerVisible((prev) => { const updated = { ...prev }; delete updated[year]; return updated; });
+
+    // Prepare next state *after* removing semesters for check
     let nextState = JSON.parse(JSON.stringify(semesters));
     delete nextState[year + "Fall"];
     delete nextState[year + "Winter"];
     delete nextState[year + "Spring"];
     delete nextState[year + "Summer"];
 
-    // Update the years list
+    // Update the years list *after* preparing state for check
     setYears((prev) => prev.filter((y) => y !== year));
 
     // Check prerequisites with the state *after* removal
@@ -528,22 +543,22 @@ function App() {
   };
 
 
-  // ---------------------------
-  // RENDER
-  // ---------------------------
+  // --- RENDER ---
   return (
     <div className="container">
-      {/* LEFT COLUMN */}
+      {/* --- LEFT COLUMN --- */}
       <div className="left-column">
-         <div className="degree-requirements">
+        {/* Degree Requirements */}
+        <div className="degree-requirements">
           <h2>Degree Requirements</h2>
           <select
             value={selectedDegree}
             onChange={(e) => {
               setSelectedDegree(e.target.value);
-              setOpenCategories(new Set());
+              setOpenCategories(new Set()); // Reset accordion on change
             }}
             className="degree-dropdown"
+            aria-label="Select Degree Program"
           >
             <option value="">Select a Degree</option>
             {Object.keys(degreeRequirements || {}).map((deg) => (
@@ -554,71 +569,48 @@ function App() {
           </select>
           {selectedDegree && degreeRequirements[selectedDegree] && (
             <div className="degree-accordion">
-              {Object.keys(degreeRequirements[selectedDegree]).map((categoryKey) => {
-                const category = degreeRequirements[selectedDegree][categoryKey];
+              {Object.entries(degreeRequirements[selectedDegree]).map(([categoryKey, category]) => {
                 const isOpen = openCategories.has(categoryKey);
                 if (categoryKey === "notes" && Array.isArray(category)) {
+                  // Special handling for notes array
                   return (
                     <div key={categoryKey} className="requirement-category category-notes">
-                      <button
-                        type="button"
-                        className="category-header"
-                        onClick={() => toggleCategory(categoryKey)}
-                        aria-expanded={isOpen}
-                      >
+                      <button type="button" className="category-header" onClick={() => toggleCategory(categoryKey)} aria-expanded={isOpen}>
                         <span>General Notes</span>
-                        <span className="toggle-icon">{isOpen ? "▼" : "▶"}</span>
+                        <span className="toggle-icon" aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
                       </button>
                       {isOpen && (
                         <div className="category-content">
-                          <ul>
-                            {category.map((note, idx) => (
-                              <li key={`note-${idx}`}>{note}</li>
-                            ))}
-                          </ul>
+                          <ul>{category.map((note, idx) => <li key={`note-${idx}`}>{note}</li>)}</ul>
                         </div>
                       )}
                     </div>
                   );
                 }
-                if (typeof category !== "object" || category === null) return null;
+                 // Skip rendering if category is not a valid object or is null
+                if (typeof category !== "object" || category === null || !category.title) return null;
 
                 let creditInfo = "";
-                if (category.credits) {
-                  creditInfo = `(${category.credits} credits)`;
-                } else if (category.creditsRequired) {
-                  creditInfo = `(${category.creditsRequired} credits required)`;
-                }
+                if (category.credits) creditInfo = `(${category.credits} credits)`;
+                else if (category.creditsRequired) creditInfo = `(${category.creditsRequired} credits required)`;
 
                 return (
                   <div key={categoryKey} className={`requirement-category category-${categoryKey}`}>
-                    <button
-                      type="button"
-                      className="category-header"
-                      onClick={() => toggleCategory(categoryKey)}
-                      aria-expanded={isOpen}
-                    >
-                      <span>{category.title || categoryKey} {creditInfo}</span>
-                      <span className="toggle-icon">{isOpen ? "▼" : "▶"}</span>
+                    <button type="button" className="category-header" onClick={() => toggleCategory(categoryKey)} aria-expanded={isOpen}>
+                      <span>{category.title} {creditInfo}</span>
+                      <span className="toggle-icon" aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
                     </button>
                     {isOpen && (
                       <div className="category-content">
                         {category.description && <p>{category.description}</p>}
+                        {/* Render based on content type (courses, options, sequences, etc.) */}
                         {category.courses && Array.isArray(category.courses) && (
-                          <ul>
-                            {category.courses.map((course, idx) => (
-                              <li key={`${categoryKey}-course-${idx}`}>{course}</li>
-                            ))}
-                          </ul>
+                          <ul>{category.courses.map((course, idx) => <li key={`${categoryKey}-course-${idx}`}>{course}</li>)}</ul>
                         )}
                         {category.options && Array.isArray(category.options) && (
                           <>
                             {category.countRequired && <p><em>(Choose {category.countRequired})</em></p>}
-                            <ul>
-                              {category.options.map((opt, idx) => (
-                                <li key={`${categoryKey}-option-${idx}`}>{opt}</li>
-                              ))}
-                            </ul>
+                            <ul>{category.options.map((opt, idx) => <li key={`${categoryKey}-option-${idx}`}>{opt}</li>)}</ul>
                           </>
                         )}
                         {category.sequences && Array.isArray(category.sequences) && (
@@ -627,15 +619,12 @@ function App() {
                             {category.sequences.map((sequence, seqIndex) => (
                               <div key={`${categoryKey}-seq-${seqIndex}`} className="sequence-option">
                                 <p><strong>Option {seqIndex + 1}:</strong></p>
-                                <ul>
-                                  {sequence.map((sCourse, sIdx) => (
-                                    <li key={`${categoryKey}-seq-${seqIndex}-course-${sIdx}`}>{sCourse}</li>
-                                  ))}
-                                </ul>
+                                <ul>{sequence.map((sCourse, sIdx) => <li key={`${categoryKey}-seq-${seqIndex}-course-${sIdx}`}>{sCourse}</li>)}</ul>
                               </div>
                             ))}
                           </>
                         )}
+                        {/* Special rendering for technical electives */}
                         {categoryKey === "technicalElectives" && (
                           <div className="technical-electives-details">
                             {category.optionsDescription && <p><em>{category.optionsDescription}</em></p>}
@@ -644,11 +633,7 @@ function App() {
                             {category.mathOptions && Array.isArray(category.mathOptions) && (
                               <>
                                 <p>- Maximum of two from the following MATH courses:</p>
-                                <ul>
-                                  {category.mathOptions.map((mathOpt, idx) => (
-                                    <li key={idx}>{mathOpt}</li>
-                                  ))}
-                                </ul>
+                                <ul>{category.mathOptions.map((mathOpt, idx) => <li key={`math-opt-${idx}`}>{mathOpt}</li>)}</ul>
                               </>
                             )}
                             {category.mathLimitNote && <p><em>{category.mathLimitNote}</em></p>}
@@ -663,292 +648,167 @@ function App() {
           )}
         </div>
 
+        {/* Course Search */}
         <div className="course-search">
           <h2>Course Search</h2>
           <input
             type="text"
             className="search-input"
-            placeholder="Search course name or ID..." // Updated placeholder
+            placeholder="Search course name or ID (e.g., CMSC 201)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search for courses"
           />
           <div className="filters">
-             {/* Ensure filter options match available data properties */}
-             <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="filter-dropdown"
-            >
-              <option value="">Category</option>
-              {uniqueCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="filter-dropdown" aria-label="Filter by Category">
+              <option value="">All Categories</option>
+              {uniqueCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
-            <select
-              value={creditsFilter}
-              onChange={(e) => {
-                const val = e.target.value;
-                // Handle empty string correctly
-                setCreditsFilter(val === "" ? "" : parseInt(val, 10));
-              }}
-              className="filter-dropdown"
-            >
-              <option value="">Credits</option>
-              {uniqueCredits.map((cred) => (
-                <option key={cred} value={cred}>
-                  {cred} Credits
-                </option>
-              ))}
+            <select value={creditsFilter} onChange={(e) => setCreditsFilter(e.target.value)} className="filter-dropdown" aria-label="Filter by Credits">
+              <option value="">All Credits</option>
+              {uniqueCredits.map((cred) => <option key={cred} value={cred}>{cred} Credits</option>)}
             </select>
-            <select
-              value={courseNumberFilter}
-              onChange={(e) => setCourseNumberFilter(e.target.value)}
-              className="filter-dropdown"
-            >
-              <option value="">Course Number</option>
+            <select value={courseNumberFilter} onChange={(e) => setCourseNumberFilter(e.target.value)} className="filter-dropdown" aria-label="Filter by Course Level">
+              <option value="">All Levels</option>
               <option value="1">1xx</option>
               <option value="2">2xx</option>
               <option value="3">3xx</option>
               <option value="4">4xx</option>
+              {/* Add others like 6xx if needed */}
             </select>
-            {/* Add back other filters when they're created */}
-            {/*
-            <select
-              value={semesterFilter}
-              onChange={(e) => setSemesterFilter(e.target.value)}
-              className="filter-dropdown"
-            >
-             ...
-            </select>
-             <select
-              value={attributeFilter}
-               onChange={(e) => setAttributeFilter(e.target.value)}
-              className="filter-dropdown"
-            >
-             ...
-            </select>
-            <select
-              value={attributeValueFilter}
-               onChange={(e) => setAttributeValueFilter(e.target.value)}
-              className="filter-dropdown"
-              disabled={...}
-            >
-             ...
-            </select>
-            */}
+             {/* Add back other filters here if needed */}
           </div>
           <div className="search-results">
             {loading && <p>Loading courses...</p>}
-            {error && <p className="error-message">{error}</p>}
-            {!loading &&
-              !error &&
-              anyFilterApplied() &&
+            {error && !loading && <p className="error-message">{error}</p>}
+            {!loading && !error && anyFilterApplied() && filteredCourses.length > 0 &&
               filteredCourses.map((course) => (
                 <div
-                  // Use course_id for key consistency
                   key={course.course_id}
                   className="result-item"
                   draggable
                   onDragStart={(e) => handleDragStart(e, course)}
-                  // Add tooltip for course description if available
-                  title={course.course_desc || ''}
+                  title={`${course.course_name} (${course.course_credits} Cr)${course.course_desc ? `\n${course.course_desc}` : ''}`}
                 >
-                   {/* Display catalog name and course name */}
-                  <strong>{course.catalog_name || `Course ID: ${course.course_id}`}</strong>: {course.course_name || 'No Name'} ({course.course_credits || 'N/A'} Cr)
+                  <strong>{course.catalog_name}</strong>: {course.course_name} ({course.course_credits} Cr)
                 </div>
               ))}
-            {!loading &&
-              !error &&
-              anyFilterApplied() &&
-              filteredCourses.length === 0 && (
-                <p>No courses match the selected filters.</p>
-              )}
+            {!loading && !error && anyFilterApplied() && filteredCourses.length === 0 && (
+              <p>No courses match the selected filters.</p>
+            )}
             {!loading && !error && !anyFilterApplied() && (
               <p>Apply filters or search to see courses.</p>
             )}
           </div>
         </div>
+      </div> {/* End Left Column */}
 
-      </div>
-
-      {/* RIGHT COLUMN: MULTI-YEAR PLANNER */}
+      {/* --- RIGHT COLUMN: MULTI-YEAR PLANNER --- */}
       <div className="semesters">
-        <h2>Semesters</h2>
+        <h2>Multi-Year Plan</h2>
+        {error && <p className="error-message">{error}</p>} {/* Show API errors prominently */}
         {years.map((year) => (
           <div className="year-container" key={year}>
-            <div className="year-header-controls"> {/* Wrapper for header and button */}
+            <div className="year-header-controls">
                 <h3 className="year-header">{yearMap[year]}</h3>
-                {/* Show Remove button only for non-base years */}
                 {!initialYears.includes(year) && (
-                <button
-                    className="remove-year-button"
-                    onClick={() => removeYear(year)}
-                    title={`Remove ${yearMap[year]}`} // Tooltip for clarity
-                >
-                    × {/* Use a simple 'x' symbol */}
-                </button>
+                  <button className="remove-year-button" onClick={() => removeYear(year)} title={`Remove ${yearMap[year]}`}> × </button>
                 )}
             </div>
 
+            {/* Render Semesters for the Year */}
+            {["Fall", "Winter", "Spring", "Summer"].map(season => {
+              const semesterKey = year + season;
+              const isOptional = season === "Winter" || season === "Summer";
+              const isVisible = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
+              const toggleFunc = isOptional ? (season === "Winter" ? toggleWinter : toggleSummer) : null;
+              const currentVisibility = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
 
-            {/* FALL (Always visible) */}
-            <div
-              className="semester-box"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, year + "Fall")}
-            >
-              <div className="semester-title-container"> {/* Wrap title and tooltip */}
-                <div className="semester-title">Fall</div>
-                <div className="question-mark-container">
-                  <span className="question-mark">?</span>
-                  <span className="tooltip-text">{getRecommendedCredits(year + "Fall")}</span>
-                </div>
-              </div>
-              <div className="courses">
-                {(semesters[year + "Fall"] || []).map((course, idx) => (
-                  <div
-                    key={year + "Fall-" + course.course_id + "-" + idx} // Use course_id
-                    // Apply conflict class if conflict exists and is not null/empty
-                    className={`course-box ${course.conflict ? "conflict" : ""}`}
-                    draggable
-                    onDragStart={(evt) => handleDragStart(evt, course, year + "Fall")}
-                    // Display conflict message in tooltip
-                    title={course.conflict || `${course.catalog_name}: ${course.course_name}`} // Show course name if no conflict
-                  >
-                     {/* Display catalog name */}
-                    <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
-                    <button
-                      className="remove-btn"
-                      onClick={() => removeCourse(year + "Fall", course)}
-                      title="Remove Course" // Add tooltip
-                      >
-                      ✖
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* WINTER Toggle */}
-            <div className="horizontal-line-container" onClick={() => toggleWinter(year)} title={winterVisible[year] ? "Hide Winter" : "Show Winter"}>
-              <div className="plus-circle">{winterVisible[year] ? "–" : "+"}</div>
-            </div>
-            {winterVisible[year] && (
-              <div
-                className="semester-box"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, year + "Winter")}
-              >
-                 <div className="semester-title-container">
-                    <div className="semester-title">Winter</div>
-                    <div className="question-mark-container">
-                    <span className="question-mark">?</span>
-                    <span className="tooltip-text">{getRecommendedCredits(year + "Winter")}</span>
+              return (
+                <React.Fragment key={semesterKey}>
+                  {/* Toggle Bar for Optional Semesters */}
+                  {isOptional && (
+                    <div className="horizontal-line-container" onClick={() => toggleFunc(year)} title={currentVisibility ? `Hide ${season}` : `Show ${season}`} role="button" tabIndex={0} aria-expanded={currentVisibility}>
+                      <div className="plus-circle" aria-hidden="true">{currentVisibility ? "–" : "+"}</div>
                     </div>
-                </div>
-                <div className="courses">
-                  {(semesters[year + "Winter"] || []).map((course, idx) => (
+                  )}
+
+                  {/* Semester Box (Render if Fall/Spring or if Optional and Visible) */}
+                  {isVisible && (
                     <div
-                       key={year + "Winter-" + course.course_id + "-" + idx}
-                       className={`course-box ${course.conflict ? "conflict" : ""}`}
-                       draggable
-                       onDragStart={(evt) => handleDragStart(evt, course, year + "Winter")}
-                       title={course.conflict || `${course.catalog_name}: ${course.course_name}`}
+                      className="semester-box"
+                      onDragOver={handleDragOver}
+                      // onDragLeave={handleDragLeave} // Optional visual feedback
+                      onDrop={(e) => handleDrop(e, semesterKey)}
+                      aria-label={`${yearMap[year]} ${season} Semester Drop Zone`}
                     >
-                      <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
-                      <button
-                        className="remove-btn"
-                        onClick={() => removeCourse(year + "Winter", course)}
-                         title="Remove Course"
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                      <div className="semester-title-container">
+                        <div className="semester-title">{season}</div>
+                        <div className="question-mark-container" title={getRecommendedCredits(semesterKey)}>
+                          <span className="question-mark" aria-hidden="true">?</span>
+                          {/* Tooltip text removed as title attribute is added */}
+                        </div>
+                      </div>
+                      <div className="courses" role="list" aria-label={`Courses in ${yearMap[year]} ${season}`}>
+                        {(semesters[semesterKey] || []).map((course) => {
+                          const itemKey = `${semesterKey}-${course.course_id}`;
+                          const isExpanded = expandedCourses.has(itemKey);
+                          const conflictMessage = course.conflict; // Get conflict message
 
-            {/* SPRING (Always visible) */}
-            <div
-              className="semester-box"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, year + "Spring")}
-            >
-               <div className="semester-title-container">
-                    <div className="semester-title">Spring</div>
-                    <div className="question-mark-container">
-                    <span className="question-mark">?</span>
-                    <span className="tooltip-text">{getRecommendedCredits(year + "Spring")}</span>
+                          return (
+                            <div
+                              key={itemKey}
+                              className={`course-box ${conflictMessage ? "conflict" : ""} ${isExpanded ? "expanded" : ""}`}
+                              draggable
+                              onDragStart={(evt) => handleDragStart(evt, course, semesterKey)}
+                              title={conflictMessage || `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`} // Combined tooltip
+                              role="listitem"
+                            >
+                              <div className="course-box-header">
+                                <button
+                                  className="expand-toggle-btn"
+                                  onClick={() => toggleCourseExpansion(itemKey)}
+                                  title={isExpanded ? "Collapse Details" : "Expand Details"}
+                                  aria-expanded={isExpanded}
+                                  aria-controls={`details-${itemKey}`}
+                                >
+                                  {isExpanded ? "▼" : "▶"}
+                                </button>
+                                <strong className="course-box-title">{course.catalog_name}</strong>
+                                <button
+                                  className="remove-btn"
+                                  onClick={() => removeCourse(semesterKey, course)}
+                                  title={`Remove ${course.catalog_name}`}
+                                  aria-label={`Remove ${course.catalog_name}`}
+                                >
+                                  ✖
+                                </button>
+                              </div>
+                              {isExpanded && (
+                                <div className="course-box-details" id={`details-${itemKey}`}>
+                                  <p><strong>Name:</strong> {course.course_name}</p>
+                                  <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
+                                  {course.category && <p><strong>Category:</strong> {course.category}</p>}
+                                  {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
+                                  {conflictMessage && <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {(semesters[semesterKey] || []).length === 0 && (
+                           <p className="empty-semester-message">Drag courses here</p> // Placeholder for empty semester
+                        )}
+                      </div>
                     </div>
-                </div>
-              <div className="courses">
-                {(semesters[year + "Spring"] || []).map((course, idx) => (
-                   <div
-                       key={year + "Spring-" + course.course_id + "-" + idx}
-                       className={`course-box ${course.conflict ? "conflict" : ""}`}
-                       draggable
-                       onDragStart={(evt) => handleDragStart(evt, course, year + "Spring")}
-                       title={course.conflict || `${course.catalog_name}: ${course.course_name}`}
-                    >
-                     <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
-                    <button
-                      className="remove-btn"
-                      onClick={() => removeCourse(year + "Spring", course)}
-                       title="Remove Course"
-                    >
-                      ✖
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* SUMMER Toggle */}
-            <div className="horizontal-line-container" onClick={() => toggleSummer(year)} title={summerVisible[year] ? "Hide Summer" : "Show Summer"}>
-              <div className="plus-circle">{summerVisible[year] ? "–" : "+"}</div>
-            </div>
-            {summerVisible[year] && (
-              <div
-                className="semester-box"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, year + "Summer")}
-              >
-                <div className="semester-title-container">
-                    <div className="semester-title">Summer</div>
-                    <div className="question-mark-container">
-                    <span className="question-mark">?</span>
-                    <span className="tooltip-text">{getRecommendedCredits(year + "Summer")}</span>
-                    </div>
-                </div>
-                <div className="courses">
-                  {(semesters[year + "Summer"] || []).map((course, idx) => (
-                    <div
-                      key={year + "Summer-" + course.course_id + "-" + idx}
-                      className={`course-box ${course.conflict ? "conflict" : ""}`}
-                      draggable
-                      onDragStart={(evt) => handleDragStart(evt, course, year + "Summer")}
-                      title={course.conflict || `${course.catalog_name}: ${course.course_name}`}
-                    >
-                      <strong>{course.catalog_name || `ID: ${course.course_id}`}</strong>
-                      <button
-                        className="remove-btn"
-                        onClick={() => removeCourse(year + "Summer", course)}
-                         title="Remove Course"
-                      >
-                        ✖
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div> // End year-container
         ))}
 
-        {/* Button to add another year */}
+        {/* Add Year Button */}
         <div className="add-year-container">
           <button className="add-year-button" onClick={addYear}>
             + Add Another Year
