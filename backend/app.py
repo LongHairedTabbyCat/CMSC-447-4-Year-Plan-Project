@@ -117,7 +117,7 @@ def test_concurrent_prereqs():
 #     { "name": "Spring 2025", "courses": [60, 46] },
 #     { "name": "Fall 2025", "courses": [24] },
 #     { "name": "Spring 2026", "courses": [23, 1, 25] },
-#     { "name": "Fall 2026", "courses": [49, 3, 34] }, // 3 is the corequisite of 49
+#     { "name": "Fall 2026", "courses": [49, 3, 34] },
 #     { "name": "Spring 2027", "courses": [26, 35, 4] }
 #   ]
 # }
@@ -191,6 +191,34 @@ def check_prerequisites():
         "missing_prerequisites": final_missing,
         "messages": final_messages
     })
+
+# Endpoint to check the prerequisites, use Postman POST Method with URL:http://localhost:5000/plan/get-eligible-courses
+# use for POST testing (also expected returned HTTP from frontend like this):
+# {
+#   "semesters": [
+#     { "name": "Spring 2025", "courses": [60, 46] },
+#     { "name": "Fall 2025", "courses": [24] },
+#     { "name": "Spring 2026", "courses": [23, 1, 25] },
+#     { "name": "Fall 2026", "courses": [49, 3, 34] },
+#     { "name": "Spring 2027", "courses": [26, 35, 4] }
+#   ]
+# }
+@app.route('/plan/get-eligible-courses', methods=['POST'])
+def get_eligible_courses():
+    data = request.get_json()
+    semesters = data.get("semesters")
+
+    if not semesters:
+        return jsonify({"error": "Missing semester data"}), 400
+
+    # Collect completed courses from all semesters
+    completed_ids = []
+    for sem in semesters:
+        completed_ids.extend(sem.get("courses", []))
+
+    eligible_courses = []
+    all_courses = Course.query.all()
+
 
 # -------------------- Run the Flask App --------------------
 
