@@ -796,9 +796,6 @@ function App() {
                             </div>
                           );
                         })}
-                        {(semesters[semesterKey] || []).length === 0 && (
-                           <p className="empty-semester-message">Drag courses here</p> // Placeholder for empty semester
-                        )}
                       </div>
                     </div>
                   )}
