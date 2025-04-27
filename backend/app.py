@@ -121,22 +121,104 @@ def test_concurrent_prereqs():
 #     { "name": "Spring 2027", "courses": [26, 35, 4] }
 #   ]
 # }
+# @app.route('/plan/check-prerequisites', methods=['POST'])
+# def check_prerequisites():
+#     data = request.get_json()
+#     semesters = data.get("semesters")
+#
+#     if not semesters:
+#         return jsonify({"error": "Missing semester data"}), 400
+#
+#     # Track all missing prerequisites and messages
+#     missing_prereqs = []
+#     messages = []
+#
+#     for target_index, semester in enumerate(semesters):
+#         current_courses = semester.get("courses", [])
+#
+#         # Get planned courses before this semester
+#         planned_courses = []
+#         for s in semesters[:target_index]:
+#             planned_courses.extend(s.get("courses", []))
+#
+#         for course_id in current_courses:
+#             course = Course.query.get(course_id)
+#             if not course:
+#                 continue
+#
+#             # 1. Find all prerequisites (grouped by and_group_id)
+#             and_prereqs = AndGroupPrereq.query.filter_by(course_id=course_id).all()
+#             group_map = {}
+#             for prereq in and_prereqs:
+#                 group_map.setdefault(prereq.and_group_id, []).append(prereq.prerequisite_id)
+#
+#             # 2. Check if at least one and_group is satisfied
+#             group_satisfied = False
+#             for group_id, prereq_ids in group_map.items():
+#                 if all(pid in planned_courses for pid in prereq_ids):
+#                     group_satisfied = True
+#                     break
+#
+#             if not group_satisfied:
+#                 # Add to missing if no group satisfied
+#                 if not any(p["course_id"] == course_id for p in missing_prereqs):
+#                     missing_prereqs.append({
+#                         "course": course.catalogname,
+#                         "course_id": course_id,
+#                         "message": f"To take {course.catalogname}, you must complete the following prerequisites: {course.prerequisite_stmt}"
+#                     })
+#
+#     # Gather all current semester courses by name for lookup
+#     semester_course_lookup = {s["name"]: set(s.get("courses", [])) for s in semesters}
+#
+#     # Filter out missing prerequisites if satisfied via concurrent enrollment
+#     final_missing = []
+#     for entry in missing_prereqs:
+#         course_id = entry["course_id"]
+#         # Find the semester this course is planned in
+#         planned_sem = next((s for s in semesters if course_id in s.get("courses", [])), None)
+#         if not planned_sem:
+#             final_missing.append(entry)
+#             continue
+#
+#         concurrent_courses = semester_course_lookup.get(planned_sem["name"], set())
+#         concurrents = ConcurrentPrereq.query.filter_by(course_id=course_id).all()
+#         concurrent_ids = [c.concurrent_id for c in concurrents]
+#
+#         # If any concurrent prereq is in the same semester, skip this missing prereq
+#         if any(cid in concurrent_courses for cid in concurrent_ids):
+#             continue
+#         final_missing.append(entry)
+#
+#     # Rebuild messages from filtered list
+#     final_messages = [entry["message"] for entry in final_missing]
+#
+#     return jsonify({
+#         "missing_prerequisites": final_missing,
+#         "messages": final_messages
+#     })
+# Endpoint to check the prerequisites
 @app.route('/plan/check-prerequisites', methods=['POST'])
 def check_prerequisites():
+    # Get JSON data from frontend request
     data = request.get_json()
     semesters = data.get("semesters")
 
     if not semesters:
         return jsonify({"error": "Missing semester data"}), 400
 
-    # Track all missing prerequisites and messages
+    # Track missing prerequisites
     missing_prereqs = []
     messages = []
 
+    # Build semester order to find target semester easier
+    semester_course_lookup = {s["name"]: set(s.get("courses", [])) for s in semesters}
+
+    # Go through each semester one by one
     for target_index, semester in enumerate(semesters):
         current_courses = semester.get("courses", [])
 
-        # Get planned courses before this semester
+        # Collect all courses planned before the current semester
         planned_courses = []
         for s in semesters[:target_index]:
             planned_courses.extend(s.get("courses", []))
@@ -144,53 +226,72 @@ def check_prerequisites():
         for course_id in current_courses:
             course = Course.query.get(course_id)
             if not course:
+                # Skip if course doesn't exist
                 continue
 
-            # Check AND prerequisites
+            # Get all AND group prerequisites for this course
             and_prereqs = AndGroupPrereq.query.filter_by(course_id=course_id).all()
+
+            # Organize by group
             group_map = {}
             for prereq in and_prereqs:
                 group_map.setdefault(prereq.and_group_id, []).append(prereq.prerequisite_id)
 
+            # Check if at least one group is satisfied
+            satisfied_groups = []
             for group_id, prereq_ids in group_map.items():
-                if not all(pid in planned_courses for pid in prereq_ids):
-                    # Missing at least one prerequisite from this group
-                    if not any(p["course_id"] == course_id for p in missing_prereqs):
-                        missing_prereqs.append({
-                            "course": course.catalogname,
-                            "course_id": course_id,
-                            "message": f"To take {course.catalogname}, you must complete the following prerequisites: {course.prerequisite_stmt}"
-                        })
+                satisfied = all(pid in planned_courses for pid in prereq_ids)
+                satisfied_groups.append(satisfied)
 
-    # Gather all current semester courses by name for lookup
-    semester_course_lookup = {s["name"]: set(s.get("courses", [])) for s in semesters}
+            # If none of the groups are satisfied, record missing prerequisite
+            if not any(satisfied_groups):
+                already_recorded = False
+                for existing in missing_prereqs:
+                    if existing["course_id"] == course_id:
+                        already_recorded = True
+                if not already_recorded:
+                    missing_prereqs.append({
+                        "course": course.catalogname,
+                        "course_id": course_id,
+                        "message": f"To take {course.catalogname}, you must complete the following prerequisites: {course.prerequisite_stmt}"
+                    })
 
-    # Filter out missing prerequisites if satisfied via concurrent enrollment
+    # After basic prerequisite checking, now handle concurrent enrollment
     final_missing = []
     for entry in missing_prereqs:
         course_id = entry["course_id"]
-        # Find the semester this course is planned in
-        planned_sem = next((s for s in semesters if course_id in s.get("courses", [])), None)
-        if not planned_sem:
+
+        # Find the semester where the course is planned
+        planned_semester = None
+        for sem in semesters:
+            if course_id in sem.get("courses", []):
+                planned_semester = sem
+                break
+
+        if planned_semester:
+            concurrent_courses = semester_course_lookup.get(planned_semester["name"], set())
+            concurrents = ConcurrentPrereq.query.filter_by(course_id=course_id).all()
+            concurrent_ids = [c.concurrent_id for c in concurrents]
+
+            concurrent_satisfied = False
+            for cid in concurrent_ids:
+                if cid in concurrent_courses:
+                    concurrent_satisfied = True
+
+            if not concurrent_satisfied:
+                final_missing.append(entry)
+        else:
             final_missing.append(entry)
-            continue
 
-        concurrent_courses = semester_course_lookup.get(planned_sem["name"], set())
-        concurrents = ConcurrentPrereq.query.filter_by(course_id=course_id).all()
-        concurrent_ids = [c.concurrent_id for c in concurrents]
+    # Build the final list of messages
+    messages = [entry["message"] for entry in final_missing]
 
-        # If any concurrent prereq is in the same semester, skip this missing prereq
-        if any(cid in concurrent_courses for cid in concurrent_ids):
-            continue
-        final_missing.append(entry)
-
-    # Rebuild messages from filtered list
-    final_messages = [entry["message"] for entry in final_missing]
-
+    # Return results
     return jsonify({
         "missing_prerequisites": final_missing,
-        "messages": final_messages
+        "messages": messages
     })
+
 
 # -------------------- Run the Flask App --------------------
 
