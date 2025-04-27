@@ -110,6 +110,18 @@ def test_concurrent_prereqs():
     results = ConcurrentPrereq.query.all()
     return jsonify([row.to_dict() for row in results])
 
+# Endpoint to check the prerequisites, use Postman POST Method with URL:http://localhost:5000/plan/check-prerequisites
+# use for POST testing (also expected returned HTTP from frontend like this):
+# {
+#   "semesters": [
+#     { "name": "Spring 2025", "courses": [60, 46] },
+#     { "name": "Fall 2025", "courses": [24] },
+#     { "name": "Spring 2026", "courses": [23, 1, 25] },
+#     { "name": "Fall 2026", "courses": [49, 3, 34] }, // 3 is the corequisite of 49
+#     { "name": "Spring 2027", "courses": [26, 35, 4] }
+#   ]
+# }
+# Endpoint to check the prerequisites
 @app.route('/plan/check-prerequisites', methods=['POST'])
 def check_prerequisites():
     # Get JSON data from frontend request
