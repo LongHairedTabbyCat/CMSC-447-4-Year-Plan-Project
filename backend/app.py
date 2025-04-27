@@ -95,7 +95,7 @@ def get_courses():
         return jsonify(courses_list) # Return the list of courses as JSON
     except Exception as e:
         # Log the error for debugging purposes (optional but recommended)
-        # app.logger.error(f"Error fetching courses: {e}")
+        app.logger.error(f"Error fetching courses: {e}")
         return jsonify({"error": "Failed to retrieve courses", "details": str(e)}), 500
 
 # Endpoint to test AndGroupPrereq model. Use Postman GET Method with URL:http://localhost:5000/test/and-group-prereqs
@@ -159,7 +159,7 @@ def check_prerequisites():
                         missing_prereqs.append({
                             "course": course.catalogname,
                             "course_id": course_id,
-                            "message": f"To take {course.catalogname}, you must complete the following prerequisites: {course.prerequiste_stmt}"
+                            "message": f"To take {course.catalogname}, you must complete the following prerequisites: {course.prerequisite_stmt}"
                         })
 
     # Gather all current semester courses by name for lookup
