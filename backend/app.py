@@ -78,6 +78,26 @@ class ConcurrentPrereq(db.Model):
             "concurrent_id": self.concurrent_id
         }
 
+# Create the Attribute model for course
+class Attribute(db.Model):
+    __tablename__ = 'attributes'
+
+    attrib_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'))
+    course_attribute = db.Column(db.Enum(
+        'Faculty-Led Study Abroad',
+        'First Year Experience',
+        'General Education Program',
+        'General Foundation Requirement'
+    ))
+    attribute_value = db.Column(db.String(255))
+
+    def to_dict(self):
+        return {
+            "course_attribute": self.course_attribute,
+            "attribute_value": self.attribute_value
+        }
+
 
 # Create database tables if they don’t exist
 with app.app_context():
