@@ -39,6 +39,19 @@ class Course(db.Model):
 
     # Convert the object to a dictionary (useful for JSON responses)
     def to_dict(self):
+        # Query attributes linked to this course
+        attributes = Attribute.query.filter_by(course_id=self.course_id).all()
+
+        # Organize attributes into two arrays
+        course_attributes = []
+        attribute_values = []
+
+        for attr in attributes:
+            if attr.course_attribute:
+                course_attributes.append(attr.course_attribute)
+            if attr.attribute_value:
+                attribute_values.append(attr.attribute_value)
+
         return {
             "course_id": self.course_id,
             "course_name": self.course_name,
