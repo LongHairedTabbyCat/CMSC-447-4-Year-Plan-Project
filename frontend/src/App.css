@@ -7,9 +7,9 @@
   --primary-accent-hover: #0056b3; /* Darker blue for hover */
   --danger-color: #dc3545; /* Standard red */
   --danger-hover: #c82333; /* Darker red for hover */
-  --warning-bg: #fff3cd; /* Light yellow for warning/conflict */
-  --warning-border: #ffeeba;
-  --warning-text: #856404;
+  --warning-bg: #f5c4c4; /* Light yellow for warning/conflict */
+  --warning-border: #f5c4c4;
+  --warning-text: #85231b;
   --text-color: #333; /* Standard dark text */
   --text-light: #6c757d; /* Grey text */
   --box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); /* Softer shadow */
