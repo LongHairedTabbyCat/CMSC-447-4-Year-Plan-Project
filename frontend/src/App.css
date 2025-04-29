@@ -1,26 +1,34 @@
-/* =============================================================================
-   CONTAINER
-   -----------------------------------------------------------------------------
-   Use a flexible container that grows with content.
-============================================================================= */
-.container {
-  display: flex;
-  min-height: 100vh; /* Changed from fixed height so the container grows with content */
-  padding: 20px;
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
-
+.container {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 
 .left-column {
   width: 33%;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
+  height: 100%;
+  padding-right: 10px;
 }
 
 .degree-requirements {
   background-color: #f0f0f0;
-  padding: 20px;
+  padding-bottom: 20px;
+  padding-right: 20px;
+  padding-left: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -38,7 +46,9 @@
 
 .course-search {
   background-color: #f0f0f0;
-  padding: 20px;
+  padding-bottom: 20px;
+  padding-right: 20px;
+  padding-left: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -106,10 +116,6 @@
   opacity: 0.5;
 }
 
-
-/* =============================================================================
-   COMMON STYLES – Course Box, Remove Button, Prerequisite Conflict, etc.
-============================================================================= */
 .semester-item,
 .course-box {
   padding: 10px;
@@ -164,10 +170,6 @@
   margin-bottom: 10px;
 }
 
-
-/* -----------------------------------------------------------------------------
-   Degree Requirements Accordion
------------------------------------------------------------------------------ */
 .degree-accordion {
   margin-top: 15px;
   border: 1px solid #ccc;
@@ -247,168 +249,216 @@
   font-style: italic;
 }
 
+:root {
+  --primary-bg: #f0f0f0;
+  --secondary-bg: #ffffff;
+  --border-color: #ddd;
+  --primary-accent: #007bff;
+  --text-color: #333;
+  --semester-bg: #f5f5f5;
+  --course-bg: #e9ecef;
+}
 
-/* =============================================================================
-   RIGHT COLUMN – 4-YEAR PLANNER
-============================================================================= */
+.left-column {
+  width: 33%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.degree-requirements, .course-search {
+  background-color: var(--primary-bg);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .semesters {
   width: 67%;
   margin-left: 20px;
-  background-color: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  /* Ensures the right column stacks its contents vertically */
+  background-color: var(--primary-bg);
+  border-radius: 8px;
+  padding-right: 20px;
+  padding-left: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
 }
 
-/* Academic Year Container */
 .year-container {
   display: flex;
   flex-direction: column;
   margin-bottom: 20px;
   width: 100%;
-  border: 1px solid #aaa; /* Slight outline */
-  border-radius: 4px;
-  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 15px;
   box-sizing: border-box;
-  background-color: #fafafa;
+  background-color: var(--secondary-bg);
 }
 
 .year-header {
-  text-decoration: underline;
   font-size: 1.2em;
-  margin: 0 0 10px 0;
+  font-weight: bold;
+  color: var(--text-color);
+  margin: 0 0 15px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--primary-accent);
 }
 
-/* Semester Boxes and Toggle Line */
-.semester-box,
-.horizontal-line-container {
-  width: 90%;
-  max-width: 800px;
-  margin: 0 auto;
-  box-sizing: border-box;
-}
-
-/* Semester Boxes in the Planner */
 .semester-box {
-  background-color: #e0e0e0;
+  background-color: var(--semester-bg);
   border-radius: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   min-height: 60px;
-  padding: 10px;
+  padding: 12px 15px;
   position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
 }
 
 .semester-title {
   font-weight: 600;
   margin-bottom: 10px;
+  color: var(--text-color);
 }
 
-/* Courses inside the Planner */
 .courses {
   margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* Horizontal Toggle Line with Plus/Minus Button */
+.course-box {
+  padding: 10px 12px;
+  background-color: var(--course-bg);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
 .horizontal-line-container {
-  margin: 20px auto;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 8px auto;
+  cursor: pointer;
+  width: 100%;
+  height: 24px;
+  position: relative;
 }
 
 .horizontal-line-container::before,
 .horizontal-line-container::after {
   content: "";
   flex: 1;
-  height: 2px;
-  background: #333;
+  height: 1px;
+  background: var(--border-color);
 }
 
 .plus-circle {
-  width: 50px;
-  height: 50px;
-  border: 2px solid #333;
-  border-radius: 50%;
-  font-size: 28px;
-  font-weight: bold;
-  color: #333;
-  background-color: #fff;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 10px;
+  background-color: var(--secondary-bg);
+  color: var(--primary-accent);
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0 10px;
+  line-height: 1;
+  transition: all 0.2s ease;
 }
 
-/* Tooltip for Recommended Credits */
+.plus-circle:hover {
+  color: #0056b3;
+}
+
 .question-mark-container {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 15px;
   cursor: help;
 }
 
 .question-mark {
-  background: #333;
+  background: #6c757d;
   color: #fff;
   border-radius: 50%;
-  padding: 2px 6px;
-  font-size: 14px;
-  line-height: 1;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
   display: inline-block;
   text-align: center;
-  margin-right: 5px;
 }
 
 .tooltip-text {
   visibility: hidden;
   width: max-content;
-  background-color: #333;
+  background-color: #343a40;
   color: #fff;
   text-align: center;
   border-radius: 4px;
-  padding: 6px;
+  padding: 6px 10px;
   position: absolute;
   z-index: 10;
   top: 25px;
   right: 0;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .question-mark-container:hover .tooltip-text {
   visibility: visible;
 }
+
+.result-item {
+  padding: 8px;
+  background-color: var(--course-bg);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: grab;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
 .add-year-button {
-  font-size: 1.2rem;       /* Increase text size */
-  padding: 10px 20px;      /* More generous padding */
-  background-color: #28a745;  /* A green background */
+  font-size: 1rem;
+  padding: 8px 18px;
+  background-color: var(--primary-accent);
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   margin-top: 15px;
+  transition: background-color 0.2s;
 }
 
 .add-year-button:hover {
-  background-color: #218838; /* Darker green on hover */
+  background-color: #0069d9;
 }
 
 .remove-year-button {
-  font-size: 0.9rem;
-  padding: 6px 12px;
-  background-color: #dc3545;  /* Red background */
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  background-color: #dc3545;
   color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  align-self: flex-end;
+  margin-top: -30px;
   margin-bottom: 10px;
+  transition: background-color 0.2s;
 }
 
 .remove-year-button:hover {
@@ -416,6 +466,12 @@
 }
 
 .add-year-container {
-  margin-top: 20px;
+  margin-top: 15px;
   text-align: center;
+}
+
+.course-box.conflict {
+  background-color: #ffdddd;
+  border: 1px solid #cc0000;
+  color: #8b0000;
 }
