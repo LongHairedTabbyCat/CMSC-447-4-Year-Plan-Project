@@ -39,15 +39,30 @@ class Course(db.Model):
 
     # Convert the object to a dictionary (useful for JSON responses)
     def to_dict(self):
+        # Query attributes linked to this course
+        attributes = Attribute.query.filter_by(course_id=self.course_id).all()
+
+        # Organize attributes into two arrays
+        course_attributes = []
+        attribute_values = []
+
+        for attr in attributes:
+            if attr.course_attribute:
+                course_attributes.append(attr.course_attribute)
+            if attr.attribute_value:
+                attribute_values.append(attr.attribute_value)
+
         return {
             "course_id": self.course_id,
             "course_name": self.course_name,
-            "catalog_name": self.catalogname, # Use snake_case for consistency in JSON keys
+            "catalog_name": self.catalogname,
             "category": self.category,
             "course_num": self.course_num,
             "course_desc": self.course_desc,
             "course_credits": self.course_credits,
-            "prerequisite_stmt": self.prerequisite_stmt
+            "prerequisite_stmt": self.prerequisite_stmt,
+            "course_attributes": course_attributes,
+            "attribute_values": attribute_values
         }
 
 # Database models for course prerequisites
@@ -76,6 +91,26 @@ class ConcurrentPrereq(db.Model):
         return {
             "course_id": self.course_id,
             "concurrent_id": self.concurrent_id
+        }
+
+# Create the Attribute model for course
+class Attribute(db.Model):
+    __tablename__ = 'attributes'
+
+    attrib_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'))
+    course_attribute = db.Column(db.Enum(
+        'Faculty-Led Study Abroad',
+        'First Year Experience',
+        'General Education Program',
+        'General Foundation Requirement'
+    ))
+    attribute_value = db.Column(db.String(255))
+
+    def to_dict(self):
+        return {
+            "course_attribute": self.course_attribute,
+            "attribute_value": self.attribute_value
         }
 
 
