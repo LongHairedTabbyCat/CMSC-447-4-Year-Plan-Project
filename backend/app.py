@@ -55,12 +55,14 @@ class Course(db.Model):
         return {
             "course_id": self.course_id,
             "course_name": self.course_name,
-            "catalog_name": self.catalogname, # Use snake_case for consistency in JSON keys
+            "catalog_name": self.catalogname,
             "category": self.category,
             "course_num": self.course_num,
             "course_desc": self.course_desc,
             "course_credits": self.course_credits,
-            "prerequisite_stmt": self.prerequisite_stmt
+            "prerequisite_stmt": self.prerequisite_stmt,
+            "course_attributes": course_attributes,
+            "attribute_values": attribute_values
         }
 
 # Database models for course prerequisites
