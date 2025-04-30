@@ -183,7 +183,7 @@ CREATE TABLE `courses` (
   `category` varchar(255) DEFAULT NULL,
   `course_num` int DEFAULT NULL,
   `course_desc` text,
-  `course_credits` int DEFAULT NULL,
+  `course_credits` float DEFAULT NULL,
   `prerequisite_stmt` text,
   PRIMARY KEY (`course_id`),
   UNIQUE KEY `category` (`category`,`course_num`,`course_name`)
@@ -299,4 +299,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-04-25 14:40:40
+-- Dump completed on 2025-04-30 14:42:02
