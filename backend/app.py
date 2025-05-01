@@ -36,6 +36,7 @@ class Course(db.Model):
     course_desc = db.Column(db.Text, nullable=True) # Use db.Text for TEXT SQL type
     course_credits = db.Column(db.Integer, nullable=True)
     prerequisite_stmt = db.Column(db.Text)
+    availability = db.relationship('Availability', backref='course', uselist=False)
 
     # Convert the object to a dictionary (useful for JSON responses)
     def to_dict(self):
@@ -62,7 +63,8 @@ class Course(db.Model):
             "course_credits": self.course_credits,
             "prerequisite_stmt": self.prerequisite_stmt,
             "course_attributes": course_attributes,
-            "attribute_values": attribute_values
+            "attribute_values": attribute_values,
+            "availability": self.availability.to_string() if self.availability else None
         }
 
 # Database models for course prerequisites
@@ -113,6 +115,25 @@ class Attribute(db.Model):
             "attribute_value": self.attribute_value
         }
 
+# Create the Availability model for seasonal offering averages
+class Availability(db.Model):
+    __tablename__ = 'availability'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.course_id'))
+    Spring_Frequency = db.Column(db.Numeric(5, 2))
+    Summer_Frequency = db.Column(db.Numeric(5, 2))
+    Fall_Frequency = db.Column(db.Numeric(5, 2))
+    Winter_Frequency = db.Column(db.Numeric(5, 2))
+
+    def to_string(self):
+        return (
+            f"Season average offering:\n"
+            f" Spring: {self.Spring_Frequency or 0},"
+            f" Summer: {self.Summer_Frequency or 0},"
+            f" Fall: {self.Fall_Frequency or 0},"
+            f" Winter: {self.Winter_Frequency or 0}"
+        )
 
 # Create database tables if they don’t exist
 with app.app_context():
