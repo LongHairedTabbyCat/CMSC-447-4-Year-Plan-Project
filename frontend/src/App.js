@@ -176,7 +176,139 @@ function App() {
           "A maximum of two MATH courses from this list may be used towards the Technical Elective requirement.",
       },
     },
-    // Add other degree requirements here...
+    "Computer Engineering": {
+    notes: [
+      "Minimum 120 credits total for degree.",
+      "Minimum GPA of 2.0 overall.",
+      "Completion of 45 upper-level credits, residence, Writing Intensive, and GenEd requirements.",
+      "Minimum grade of 'C' in courses applied to the major (unless otherwise noted).",
+      "Minimum of 18 credits in CMSC, CMPE and/or ENEE courses must be completed in residence at UMBC.",
+      "Students may complete one major or minor from Computer Science and Electrical Engineering.",
+      "Completion of one of the following tracks is required: Communications, Cybersecurity, or Electronic Systems."
+    ],
+    gateway: {
+      title: "Computer Engineering Gateway",
+      credits: 23,
+      description: "Students are admitted to the Computer Engineering program when they pass the following Gateway courses with required minimum grades.",
+      courses: [
+        "CMPE 212 - Principles of Digital Design (4) - Minimum grade of 'B'",
+        "CMSC 201 - Computer Science I (4) or CMSC 201H - Computer Science I (Honors) (4) - Minimum grade of 'B'",
+        "MATH 151 - Calculus and Analytic Geometry I (4) - Minimum grade of 'B'",
+        "PHYS 121 - Introductory Physics I (4) and PHYS 122 - Introductory Physics II (4) - At least one with minimum grade of 'B'",
+        "ENES 101 - Introduction to Engineering (3) - Minimum grade of 'C'"
+      ]
+    },
+    requiredCs: {
+      title: "Required Computer Science Courses",
+      credits: 16,
+      description: "Complete the following:",
+      courses: [
+        "CMSC 202 - Computer Science II (4) or CMSC 202H - Computer Science II (Honors) (4)",
+        "CMSC 203 - Discrete Structures (3)",
+        "CMSC 341 - Data Structures (3) or CMSC 341H - Data Structures (3)",
+        "CMSC 411 - Computer Architecture (3)",
+        "CMSC 421 - Principles of Operating Systems (3)"
+      ]
+    },
+    requiredMath: {
+      title: "Required Mathematics Courses",
+      credits: 14,
+      description: "Complete the following:",
+      courses: [
+        "MATH 152 - Calculus and Analytic Geometry II (4)",
+        "MATH 221 - Introduction to Linear Algebra (3)",
+        "MATH 225 - Introduction to Differential Equations (3)",
+        "MATH 251 - Multivariable Calculus (4)"
+      ]
+    },
+    requiredScienceElective: {
+      title: "Science Elective",
+      credits: "3-4",
+      description: "Complete one (1) of the following:",
+      options: [
+        "BIOL 141 - Foundations of Biology: Cells, Energy and Organisms (4)",
+        "BIOL 142 - Foundations of Biology: Ecology and Evolution (4)",
+        "CHEM 101 - Principles of Chemistry I (4)",
+        "PHYS 220 - Introduction to Computational Physics (3)",
+        "PHYS 224 - Vibrations and Waves (3)"
+      ],
+      countRequired: 1
+    },
+    requiredEngineering: {
+      title: "Required Computer Engineering Courses",
+      credits: 26,
+      description: "Complete the following:",
+      courses: [
+        "CMPE 306 - Introductory Circuit Theory (4)",
+        "CMPE 310 - Systems Design and Programming (4)",
+        "CMPE 311 - C Programming and Embedded Systems (3)",
+        "CMPE 314 - Principles of Electronic Circuits (4)",
+        "CMPE 320 - Probability, Statistics, and Random Processes (3)",
+        "CMPE 349 - Introduction to Professional Practice (3)",
+        "CMPE 450 - Capstone I (3)",
+        "CMPE 451 - Capstone II (3)"
+      ]
+    }
+  },
+  "Information Systems": {
+    notes: [
+      "Minimum 120 credits total for degree.",
+      "Minimum GPA of 2.0 overall.",
+      "Completion of 45 upper‑level credits, residence requirement, Writing Intensive requirement, and General Education requirement.",
+      "Minimum 65 credits in the major.",
+      "Minimum grade of 'C' in courses applied to the major (unless otherwise noted).",
+      "Minimum of 9 IS courses at the 300 level or higher completed in residence at UMBC."
+    ],
+    gateway: {
+      title: "Gateway Courses",
+      credits: "13-14",
+      description: "Complete the following courses with a grade of ‘B’ or better. These courses must be completed in residence and Information Systems does not support third‑time repeat petitions for the purposes of continuing in this major.",
+      courses: [
+        "IS 300 - Management Information Systems (3)",
+        "IS 310 - Software and Hardware Concepts (3)",
+        "IS 147 - Introduction to Computer Programming (3) or CMSC 201 - Computer Science I (4)",
+        "MATH 151 - Calculus and Analytic Geometry I (4) or MATH 155 - Applied Calculus (4)"
+      ]
+    },
+    informationSystems: {
+      title: "Information Systems",
+      credits: 21,
+      description: "Complete the following:",
+      courses: [
+        "IS 410 - Introduction to Database Design (3)",
+        "IS 420 - Database Application Development (3)",
+        "IS 425 - Decision Support Systems (3)",
+        "IS 436 - Structured Systems Analysis and Design (3)",
+        "IS 450 - Data Communications and Networks (3)",
+        "IS 451 - Network Design and Management (3)",
+        "Additional upper‑level IS course, excluding IS 397, IS 399, IS 400, IS 467, IS 469, IS 478, IS 479 and any course also applied to an Information Systems certificate."
+      ]
+    },
+    mathAndCs: {
+      title: "Mathematics and Computer Science",
+      credits: "13-14",
+      description: "Complete the following. Students who complete IS 147 in the Gateway complete IS 247. Students who complete CMSC 201 in the Gateway complete CMSC 202.",
+      courses: [
+        "IS 247 - Computer Programming II (3) or CMSC 202 - Computer Science II (4)",
+        "MATH 215 - Applied Finite Mathematics (3) or MATH 221 - Introduction to Linear Algebra (3)",
+        "STAT 351 - Applied Statistics for Business and Economics (4)",
+        "One additional semester of an approved programming language"
+      ]
+    },
+    administrativeScience: {
+      title: "Administrative Science",
+      credits: 18,
+      description: "Complete the following:",
+      courses: [
+        "MGMT 210 - The Practice of Management (3)",
+        "ECON 101 - Principles of Microeconomics (3)",
+        "ECON 102 - Principles of Macroeconomics (3)",
+        "ECON 121 - Principles of Accounting I (3)",
+        "ECON 122 - Principles of Accounting II (3)",
+        "ENGL 393 - Technical Communication (3) or IS 369 - Research Seminar: Writings in Information Systems (3)"
+      ]
+    }
+  }
   };
 
   // --- Functions ---
