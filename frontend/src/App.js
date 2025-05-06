@@ -518,6 +518,42 @@ const commonUniversityAndGepRequirements = {
     event.preventDefault(); // Necessary to allow dropping
   };
 
+    // --- Inside the App component ---
+
+  // Function to toggle the ignore flag for a specific course instance
+  const toggleIgnorePrereqs = (semesterKey, courseId) => {
+    setSemesters(currentSemesters => {
+      // Create a deep copy to avoid direct mutation (optional but safer)
+      const updatedSemesters = JSON.parse(JSON.stringify(currentSemesters));
+
+      if (!updatedSemesters[semesterKey]) {
+        console.warn(`Semester ${semesterKey} not found while toggling ignore flag.`);
+        return currentSemesters; // Return original state if semester doesn't exist
+      }
+
+      // Find and update the specific course
+      let courseFound = false;
+      updatedSemesters[semesterKey] = updatedSemesters[semesterKey].map(course => {
+        if (course.course_id === courseId) {
+          courseFound = true;
+          return {
+            ...course,
+            ignorePrereqs: !course.ignorePrereqs // Toggle the flag (initialize if undefined)
+          };
+        }
+        return course;
+      });
+
+      if (!courseFound) {
+          console.warn(`Course ID ${courseId} not found in semester ${semesterKey} while toggling ignore flag.`);
+      }
+
+      // Return the updated state object
+      return updatedSemesters;
+    });
+    // NO backend check needed here - purely presentation
+  };
+
   const handleDrop = (event, targetSemester) => {
     event.preventDefault();
     const transferData = JSON.parse(event.dataTransfer.getData("text/plain"));
@@ -553,9 +589,12 @@ const commonUniversityAndGepRequirements = {
       // Find the complete course data from `allCourses` using the ID.
       // Fallback to the potentially simplified `course` from transferData if not found (should not happen ideally).
       const fullCourseData = allCourses.find((c) => c.course_id === uniqueId) || course;
-
-      // Add the *full* course object with conflict initially null
-      nextState[targetSemester].push({ ...fullCourseData, conflict: null });
+      // Add with conflict initially null and ignorePrereqs set to false
+      nextState[targetSemester].push({
+          ...fullCourseData,
+          conflict: null,
+          ignorePrereqs: false // Initialize the flag
+      });
     } else {
       console.warn(`Course ${uniqueId} already exists in ${targetSemester}`);
       // Optional: Prevent drop or show notification
@@ -983,59 +1022,87 @@ const commonUniversityAndGepRequirements = {
                         {(semesters[semesterKey] || []).map((course) => {
                           const itemKey = `${semesterKey}-${course.course_id}`;
                           const isExpanded = expandedCourses.has(itemKey);
-                          const conflictMessage = course.conflict; // Get conflict message
+                          const conflictMessage = course.conflict;
+                          const isIgnored = course.ignorePrereqs === true; // Check the flag
+
+                          // Determine if the conflict style should apply
+                          const showConflictStyle = conflictMessage && !isIgnored;
 
                           return (
                             <div
                               key={itemKey}
-                              className={`course-box ${conflictMessage ? "conflict" : ""} ${isExpanded ? "expanded" : ""}`}
+                              // Apply 'conflict' class only if there's a message AND it's NOT ignored
+                              // Add an 'ignored-indicator' class if the flag is true
+                              className={`course-box ${showConflictStyle ? "conflict" : ""} ${isExpanded ? "expanded" : ""} ${isIgnored ? "ignored-indicator" : ""}`}
                               draggable
-                              onDragStart={(evt) => handleDragStart(evt, course, semesterKey)} // handleDragStart updated
-                              title={conflictMessage || `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`} // Combined tooltip
+                              onDragStart={(evt) => handleDragStart(evt, course, semesterKey)}
+                              // Update title based on ignore status
+                              title={
+                                isIgnored
+                                  ? `${course.catalog_name}: Prerequisite check ignored by user. ${conflictMessage ? `(Original conflict: ${conflictMessage})` : ''}`
+                                  : conflictMessage
+                                  ? `Conflict: ${conflictMessage}`
+                                  : `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`
+                              }
                               role="listitem"
                             >
                               <div className="course-box-header">
+                                {/* ... expand toggle button ... */}
                                 <button
-                                  className="expand-toggle-btn"
-                                  onClick={() => toggleCourseExpansion(itemKey)}
-                                  title={isExpanded ? "Collapse Details" : "Expand Details"}
-                                  aria-expanded={isExpanded}
-                                  aria-controls={`details-${itemKey}`}
+                                    className="expand-toggle-btn"
+                                    onClick={() => toggleCourseExpansion(itemKey)}
+                                    title={isExpanded ? "Collapse Details" : "Expand Details"}
+                                    aria-expanded={isExpanded}
+                                    aria-controls={`details-${itemKey}`}
                                 >
-                                  {isExpanded ? "▼" : "▶"}
+                                    {isExpanded ? "▼" : "▶"}
                                 </button>
                                 <strong className="course-box-title">{course.catalog_name}</strong>
+                                {/* ... remove button ... */}
                                 <button
-                                  className="remove-btn"
-                                  onClick={() => removeCourse(semesterKey, course)}
-                                  title={`Remove ${course.catalog_name}`}
-                                  aria-label={`Remove ${course.catalog_name}`}
+                                    className="remove-btn"
+                                    onClick={() => removeCourse(semesterKey, course)}
+                                    title={`Remove ${course.catalog_name}`}
+                                    aria-label={`Remove ${course.catalog_name}`}
                                 >
-                                  ✖
+                                    ✖
                                 </button>
                               </div>
-                              {/* --- UPDATED EXPANDED DETAILS --- */}
                               {isExpanded && (
                                 <div className="course-box-details" id={`details-${itemKey}`}>
-                                  <p><strong>Name:</strong> {course.course_name || 'N/A'}</p>
-                                  <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
-                                  {course.category && <p><strong>Category:</strong> {course.category}</p>}
-                                  {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
-                                  {/* NEW: Display Attributes */}
-                                  {course.course_attributes && course.course_attributes.length > 0 && (
-                                    <p><strong>Attributes:</strong> {course.course_attributes.join(', ')}</p>
-                                  )}
-                                  {/* Display Attribute Values */}
-                                  {course.attribute_values && course.attribute_values.length > 0 && (
-                                    <p><strong>Attribute Values:</strong> {course.attribute_values.join(', ')}</p>
-                                  )}
-                                   {/* Display Prerequisites Statement if available */}
-                                  {course.prerequisite_stmt && <p><strong>Prerequisites:</strong> {course.prerequisite_stmt}</p>}
-                                  {/* Display Conflict */}
-                                  {conflictMessage && <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>}
+                                  {/* Wrapper for main text content */}
+                                  <div className="details-main-content">
+                                    <p><strong>Name:</strong> {course.course_name}</p>
+                                    <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
+                                    {course.category && <p><strong>Category:</strong> {course.category}</p>}
+                                    {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
+
+                                    {/* Display conflict message conditionally based on ignore status */}
+                                    {conflictMessage && !isIgnored && (
+                                      <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>
+                                    )}
+                                    {conflictMessage && isIgnored && (
+                                      <p className="ignored-conflict-detail">
+                                        <strong>Conflict Ignored:</strong> <span className="original-conflict-text">{conflictMessage}</span>
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Wrapper for action buttons (only one for now) */}
+                                  <div className="details-actions">
+                                    {/* --- The Ignore Button --- */}
+                                    <button
+                                      className={`ignore-prereq-btn ${isIgnored ? 'active' : ''}`}
+                                      onClick={() => toggleIgnorePrereqs(semesterKey, course.course_id)}
+                                      title={isIgnored ? "Re-enable prerequisite checking for this course" : "Ignore prerequisites for this course"}
+                                    >
+                                      {/* Shortened Text */}
+                                      {isIgnored ? "Undo Ignore" : "Ignore"}
+                                    </button>
+                                    {/* --- End of Ignore Button --- */}
+                                  </div>
                                 </div>
                               )}
-                              {/* --- END UPDATED EXPANDED DETAILS --- */}
                             </div>
                           );
                         })}
