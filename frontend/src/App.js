@@ -53,9 +53,67 @@ function App() {
     return acc;
   }, {});
 
+  // Define this object BEFORE your `degreeRequirements` constant
+const commonUniversityAndGepRequirements = {
+  universityGraduationRequirements: {
+    title: "University Graduation Requirements",
+    notes: [
+      "Minimum 120 academic credits must be completed (institutional credits do not count towards this total).",
+      "The final 30 credits for the degree must be earned in residence at UMBC.",
+      "A minimum cumulative Grade Point Average (GPA) of 2.00 is required.",
+      "A total of 45 upper-level credits (courses numbered 300 or 400) must be completed.",
+      "A major in an academic discipline must be successfully completed.",
+      "Completion of two (2) different Physical Education (PE) activity courses (unless exempt due to age or veteran status).",
+      "Completion of one (1) approved Writing Intensive (WI) designated course."
+    ]
+  },
+  gepRequirementsOverview: {
+      title: "General Education Program (GEP) Overview",
+      notes: [
+        "All courses applied to General Education Program (GEP) requirements must be completed with a grade of 'C' or better.",
+        "A single course may not be used to fulfill more than one GEP requirement (e.g., a course cannot count as both an Arts/Humanities and a Social Science).",
+        "A maximum of two courses from the same academic discipline may be used to satisfy the Arts/Humanities GEP requirement.",
+        "A maximum of two courses from the same academic discipline may be used to satisfy the Social Sciences GEP requirement.",
+        "Across all GEP requirements (excluding English Composition), a student may use up to three courses from the same academic discipline.",
+        "Advanced Placement (AP), International Baccalaureate (IB), and College-Level Examination Program (CLEP) credits may be applicable towards GEP requirements, subject to UMBC's credit policies.",
+        "Only one First-Year Seminar (FYS) course may be counted towards fulfilling GEP requirements."
+      ]
+  },
+  englishCompositionGEP: {
+    title: "English Composition (GEP)",
+    description: "Complete English 100 (ENGL 100) or an approved equivalent (typically 1 course)."
+    // You could add `courses: ["ENGL 100 - Composition (3)"]` if you want to list it like other requirements
+  },
+  artsHumanitiesGEP: {
+    title: "Arts & Humanities (AH - GEP)",
+    description: "Complete three (3) approved Arts & Humanities (AH) designated courses. These courses must originate from at least two (2) different academic disciplines."
+  },
+  socialSciencesGEP: {
+    title: "Social Sciences (SS - GEP)",
+    description: "Complete three (3) approved Social Sciences (SS) designated courses. These courses must originate from at least two (2) different academic disciplines."
+  },
+  mathematicsGEP: {
+    title: "Mathematics (M - GEP)",
+    description: "Complete one (1) approved Mathematics (M) or Statistics designated course."
+  },
+  sciencesGEP: {
+    title: "Sciences (S/SL - GEP)",
+    description: "Complete two (2) approved Science designated courses. At least one of these science courses must include a laboratory component (designated SL)."
+  },
+  cultureGEP: {
+    title: "Culture (C - GEP)",
+    description: "Requirement varies by degree type: \n - Bachelor of Arts (B.A.) students: Complete two (2) 'C' designated courses. \n - Bachelor of Science (B.S.) / Bachelor of Science in Engineering (B.S.E.) students: Complete one (1) 'C' designated course."
+  },
+  foreignLanguageGEP: {
+    title: "Foreign Language (FL - GEP)",
+    description: "Demonstrate proficiency in a foreign language through the 201-level (e.g., SPAN 201). Proficiency can be demonstrated by course completion, placement testing, or other approved equivalents."
+  }
+};
+
   // Static Data (Degree Requirements)
   const degreeRequirements = {
     "Computer Science": {
+      ...commonUniversityAndGepRequirements,
       notes: [
         "Minimum 120 credits total for degree.",
         "Minimum GPA of 2.0 overall.",
@@ -177,6 +235,7 @@ function App() {
       },
     },
     "Computer Engineering": {
+        ...commonUniversityAndGepRequirements,
         notes: [
         "Minimum 120 credits total for degree.",
         "Minimum GPA of 2.0 overall.",
@@ -251,6 +310,7 @@ function App() {
         }
     },
     "Information Systems": {
+        ...commonUniversityAndGepRequirements,
         notes: [
         "Minimum 120 credits total for degree.",
         "Minimum GPA of 2.0 overall.",
@@ -752,6 +812,11 @@ function App() {
                         <div className="category-content">
                             {category.description && <p>{category.description}</p>}
                             {/* Render based on content type (courses, options, sequences, etc.) */}
+                            {category.notes && Array.isArray(category.notes) && (
+                              <ul>
+                               {category.notes.map((note, idx) => <li key={`${categoryKey}-note-${idx}`}>{note}</li>)}
+                              </ul>
+                            )}
                             {category.courses && Array.isArray(category.courses) && (
                             <ul>{category.courses.map((course, idx) => <li key={`${categoryKey}-course-${idx}`}>{course}</li>)}</ul>
                             )}
