@@ -64,7 +64,7 @@ class Course(db.Model):
             "prerequisite_stmt": self.prerequisite_stmt,
             "course_attributes": course_attributes,
             "attribute_values": attribute_values,
-            "availability": self.availability.to_string() if self.availability else None
+            "availability": self.availability.to_dict() if self.availability else None
         }
 
 # Database models for course prerequisites
@@ -126,14 +126,13 @@ class Availability(db.Model):
     Fall_Frequency = db.Column(db.Numeric(5, 2))
     Winter_Frequency = db.Column(db.Numeric(5, 2))
 
-    def to_string(self):
-        return (
-            f"Season average offering:\n"
-            f" Spring: {self.Spring_Frequency or 0},"
-            f" Summer: {self.Summer_Frequency or 0},"
-            f" Fall: {self.Fall_Frequency or 0},"
-            f" Winter: {self.Winter_Frequency or 0}"
-        )
+    def to_dict(self):
+        return {
+            "spring_availability": self.Spring_Frequency,
+            "summer_availability": self.Summer_Frequency,
+            "fall_availability": self.Fall_Frequency,
+            "winter_availability": self.Winter_Frequency,
+        }
 
 # Create database tables if they don’t exist
 with app.app_context():
