@@ -992,138 +992,140 @@ const commonUniversityAndGepRequirements = {
         <h2>Multi-Year Plan</h2>
 
         {error && <p className="error-message">{error}</p>}
-        {years.map((year) => (
-          <div className="year-container" key={year}>
-            <div className="year-header-controls">
-                <h3 className="year-header">{yearMap[year]}</h3>
-                {!initialYears.includes(year) && (
-                  <button className="remove-year-button" onClick={() => removeYear(year)} title={`Remove ${yearMap[year]}`}> × </button>
-                )}
-            </div>
+        <div className="semester-scroll-area">
+            {years.map((year) => (
+              <div className="year-container" key={year}>
+                <div className="year-header-controls">
+                    <h3 className="year-header">{yearMap[year]}</h3>
+                    {!initialYears.includes(year) && (
+                      <button className="remove-year-button" onClick={() => removeYear(year)} title={`Remove ${yearMap[year]}`}> × </button>
+                    )}
+                </div>
 
-            {["Fall", "Winter", "Spring", "Summer"].map(season => {
-              const semesterKey = year + season;
-              const isOptional = season === "Winter" || season === "Summer";
-              const isVisible = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
-              const toggleFunc = isOptional ? (season === "Winter" ? toggleWinter : toggleSummer) : null;
-              const currentVisibility = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
+                {["Fall", "Winter", "Spring", "Summer"].map(season => {
+                  const semesterKey = year + season;
+                  const isOptional = season === "Winter" || season === "Summer";
+                  const isVisible = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
+                  const toggleFunc = isOptional ? (season === "Winter" ? toggleWinter : toggleSummer) : null;
+                  const currentVisibility = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
 
-              return (
-                <React.Fragment key={semesterKey}>
-                  {isOptional && (
-                    <div className="horizontal-line-container" onClick={() => toggleFunc(year)} title={currentVisibility ? `Hide ${season}` : `Show ${season}`} role="button" tabIndex={0} aria-expanded={currentVisibility}>
-                      <div className="plus-circle" aria-hidden="true">{currentVisibility ? "–" : "+"}</div>
-                    </div>
-                  )}
-
-                  {isVisible && (
-                    <div
-                      className="semester-box"
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, semesterKey)}
-                      aria-label={`${yearMap[year]} ${season} Semester Drop Zone`}
-                    >
-                      <div className="semester-title-container">
-                        <div className="semester-title">{season}</div>
-                        <div className="question-mark-container" title={getRecommendedCredits(semesterKey)}>
-                          <span className="question-mark" aria-hidden="true">?</span>
+                  return (
+                    <React.Fragment key={semesterKey}>
+                      {isOptional && (
+                        <div className="horizontal-line-container" onClick={() => toggleFunc(year)} title={currentVisibility ? `Hide ${season}` : `Show ${season}`} role="button" tabIndex={0} aria-expanded={currentVisibility}>
+                          <div className="plus-circle" aria-hidden="true">{currentVisibility ? "–" : "+"}</div>
                         </div>
-                      </div>
-                      <div className="courses" role="list" aria-label={`Courses in ${yearMap[year]} ${season}`}>
-                        {(semesters[semesterKey] || []).map((course) => {
-                          const itemKey = `${semesterKey}-${course.course_id}`;
-                          const isExpanded = expandedCourses.has(itemKey);
-                          const conflictMessage = course.conflict;
-                          const isIgnored = course.ignorePrereqs === true;
-                          const showConflictStyle = conflictMessage && !isIgnored;
+                      )}
 
-                          return (
-                            <div
-                              key={itemKey}
-                              className={`course-box ${showConflictStyle ? "conflict" : ""} ${isExpanded ? "expanded" : ""} ${isIgnored ? "ignored-indicator" : ""}`}
-                              draggable
-                              onDragStart={(evt) => handleDragStart(evt, course, semesterKey)}
-                              title={
-                                isIgnored
-                                  ? `${course.catalog_name}: Prerequisite check ignored by user. ${conflictMessage ? `(Original conflict: ${conflictMessage})` : ''}`
-                                  : conflictMessage
-                                  ? `Conflict: ${conflictMessage}`
-                                  : `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`
-                              }
-                              role="listitem"
-                            >
-                              <div className="course-box-header">
-                                <button
-                                    className="expand-toggle-btn"
-                                    onClick={() => toggleCourseExpansion(itemKey)}
-                                    title={isExpanded ? "Collapse Details" : "Expand Details"}
-                                    aria-expanded={isExpanded}
-                                    aria-controls={`details-${itemKey}`}
+                      {isVisible && (
+                        <div
+                          className="semester-box"
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, semesterKey)}
+                          aria-label={`${yearMap[year]} ${season} Semester Drop Zone`}
+                        >
+                          <div className="semester-title-container">
+                            <div className="semester-title">{season}</div>
+                            <div className="question-mark-container" title={getRecommendedCredits(semesterKey)}>
+                              <span className="question-mark" aria-hidden="true">?</span>
+                            </div>
+                          </div>
+                          <div className="courses" role="list" aria-label={`Courses in ${yearMap[year]} ${season}`}>
+                            {(semesters[semesterKey] || []).map((course) => {
+                              const itemKey = `${semesterKey}-${course.course_id}`;
+                              const isExpanded = expandedCourses.has(itemKey);
+                              const conflictMessage = course.conflict;
+                              const isIgnored = course.ignorePrereqs === true;
+                              const showConflictStyle = conflictMessage && !isIgnored;
+
+                              return (
+                                <div
+                                  key={itemKey}
+                                  className={`course-box ${showConflictStyle ? "conflict" : ""} ${isExpanded ? "expanded" : ""} ${isIgnored ? "ignored-indicator" : ""}`}
+                                  draggable
+                                  onDragStart={(evt) => handleDragStart(evt, course, semesterKey)}
+                                  title={
+                                    isIgnored
+                                      ? `${course.catalog_name}: Prerequisite check ignored by user. ${conflictMessage ? `(Original conflict: ${conflictMessage})` : ''}`
+                                      : conflictMessage
+                                      ? `Conflict: ${conflictMessage}`
+                                      : `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`
+                                  }
+                                  role="listitem"
                                 >
-                                    {isExpanded ? "▼" : "▶"}
-                                </button>
-                                <strong className="course-box-title">{course.catalog_name}</strong>
-                                <button
-                                    className="remove-btn"
-                                    onClick={() => removeCourse(semesterKey, course)}
-                                    title={`Remove ${course.catalog_name}`}
-                                    aria-label={`Remove ${course.catalog_name}`}
-                                >
-                                    ✖
-                                </button>
-                              </div>
-                              {isExpanded && (
-                                <div className="course-box-details" id={`details-${itemKey}`}>
-                                  <div className="details-main-content">
-                                    <p><strong>Name:</strong> {course.course_name}</p>
-                                    <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
-                                    {course.category && <p><strong>Category:</strong> {course.category}</p>}
-                                    {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
-                                    {/* Display prerequisite_stmt, useful for debugging or user info */}
-                                    {course.prerequisite_stmt && <p><strong>Prerequisites (Stated):</strong> {course.prerequisite_stmt}</p>}
-
-
-                                    {conflictMessage && !isIgnored && (
-                                      <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>
-                                    )}
-                                    {conflictMessage && isIgnored && (
-                                      <p className="ignored-conflict-detail">
-                                        <strong>Conflict Ignored:</strong> <span className="original-conflict-text">{conflictMessage}</span>
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <div className="details-actions">
+                                  <div className="course-box-header">
                                     <button
-                                      className={`ignore-prereq-btn ${isIgnored ? 'active' : ''}`}
-                                      onClick={() => toggleIgnorePrereqs(semesterKey, course.course_id)}
-                                      title={isIgnored ? "Re-enable prerequisite checking for this course" : "Ignore prerequisites for this course"}
+                                        className="expand-toggle-btn"
+                                        onClick={() => toggleCourseExpansion(itemKey)}
+                                        title={isExpanded ? "Collapse Details" : "Expand Details"}
+                                        aria-expanded={isExpanded}
+                                        aria-controls={`details-${itemKey}`}
                                     >
-                                      {isIgnored ? "Undo Ignore" : "Ignore"}
+                                        {isExpanded ? "▼" : "▶"}
+                                    </button>
+                                    <strong className="course-box-title">{course.catalog_name}</strong>
+                                    <button
+                                        className="remove-btn"
+                                        onClick={() => removeCourse(semesterKey, course)}
+                                        title={`Remove ${course.catalog_name}`}
+                                        aria-label={`Remove ${course.catalog_name}`}
+                                    >
+                                        ✖
                                     </button>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        ))}
+                                  {isExpanded && (
+                                    <div className="course-box-details" id={`details-${itemKey}`}>
+                                      <div className="details-main-content">
+                                        <p><strong>Name:</strong> {course.course_name}</p>
+                                        <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
+                                        {course.category && <p><strong>Category:</strong> {course.category}</p>}
+                                        {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
+                                        {/* Display prerequisite_stmt, useful for debugging or user info */}
+                                        {course.prerequisite_stmt && <p><strong>Prerequisites (Stated):</strong> {course.prerequisite_stmt}</p>}
 
-        <div className="add-year-container">
-          <button className="add-year-button" onClick={addYear}>
-            + Add Another Year
-          </button>
+
+                                        {conflictMessage && !isIgnored && (
+                                          <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>
+                                        )}
+                                        {conflictMessage && isIgnored && (
+                                          <p className="ignored-conflict-detail">
+                                            <strong>Conflict Ignored:</strong> <span className="original-conflict-text">{conflictMessage}</span>
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      <div className="details-actions">
+                                        <button
+                                          className={`ignore-prereq-btn ${isIgnored ? 'active' : ''}`}
+                                          onClick={() => toggleIgnorePrereqs(semesterKey, course.course_id)}
+                                          title={isIgnored ? "Re-enable prerequisite checking for this course" : "Ignore prerequisites for this course"}
+                                        >
+                                          {isIgnored ? "Undo Ignore" : "Ignore"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            ))}
+
+            <div className="add-year-container">
+              <button className="add-year-button" onClick={addYear}>
+                + Add Another Year
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </>
+    </>
   );
 }
 

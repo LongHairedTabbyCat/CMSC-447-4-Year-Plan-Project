@@ -67,6 +67,12 @@ html, body {
   font-size: 1.4em;
 }
 
+.semester-scroll-area {
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
+  display: flex;
+  flex-direction: column;
+}
 
 .degree-requirements, .course-search {
   background-color: var(--secondary-bg);
@@ -531,9 +537,13 @@ html, body {
 
 .add-year-container {
   margin-top: 20px;
-  text-align: center;
   padding-top: 15px;
+  text-align: center;
   border-top: 1px solid var(--border-color);
+  clear: both;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .add-year-button {
