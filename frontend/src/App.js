@@ -935,6 +935,31 @@ const commonUniversityAndGepRequirements = {
 
       <div className="semesters">
         <h2>Multi-Year Plan</h2>
+
+        <div className="plan-actions">
+          <button
+            className="export-button"
+            onClick={() => {
+              const planData = {
+                semesters,
+                years
+              };
+              const blob = new Blob([JSON.stringify(planData, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = "my-4year-plan.json";
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }}
+            title="Download your current plan as a JSON file"
+          >
+            Export Plan
+          </button>
+        </div>
+
         {error && <p className="error-message">{error}</p>}
         {years.map((year) => (
           <div className="year-container" key={year}>

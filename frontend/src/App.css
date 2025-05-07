@@ -558,6 +558,28 @@ html, body {
   width: 8px;
 }
 
+.plan-actions {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.export-button {
+  padding: 8px 14px;
+  background-color: var(--primary-accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.export-button:hover {
+  background-color: var(--primary-accent-hover);
+}
+
+
 .left-column::-webkit-scrollbar-track,
 .semesters::-webkit-scrollbar-track,
 .search-results::-webkit-scrollbar-track {
