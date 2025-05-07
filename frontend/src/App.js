@@ -958,6 +958,41 @@ const commonUniversityAndGepRequirements = {
           >
             Export Plan
           </button>
+          <input
+            type="file"
+            accept=".json"
+            style={{ display: "none" }}
+            id="import-plan-input"
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const parsed = JSON.parse(event.target.result);
+                  if (parsed.semesters && parsed.years) {
+                    setSemesters(parsed.semesters);
+                    setYears(parsed.years);
+                  } else {
+                    alert("Invalid plan file format.");
+                  }
+                } catch (err) {
+                  alert("Failed to import plan. Make sure it's a valid JSON file.");
+                  console.error("Import error:", err);
+                }
+              };
+              reader.readAsText(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            className="import-button"
+            onClick={() => document.getElementById("import-plan-input").click()}
+            title="Upload a previously saved plan JSON file"
+          >
+            Import Plan
+          </button>
         </div>
 
         {error && <p className="error-message">{error}</p>}
