@@ -779,12 +779,25 @@ const commonUniversityAndGepRequirements = {
           reader.onload = (event) => {
             try {
               const parsed = JSON.parse(event.target.result);
-              if (parsed.semesters && parsed.years) {
-                setSemesters(parsed.semesters);
-                setYears(parsed.years);
-              } else {
-                alert("Invalid plan file format.");
-              }
+            if (parsed.semesters && parsed.years) {
+              setSemesters(parsed.semesters);
+              setYears(parsed.years);
+
+              const newWinterVisibility = {};
+              const newSummerVisibility = {};
+
+              parsed.years.forEach((year) => {
+                const hasWinter = parsed.semesters[`${year}Winter`]?.length > 0;
+                const hasSummer = parsed.semesters[`${year}Summer`]?.length > 0;
+                newWinterVisibility[year] = hasWinter;
+                newSummerVisibility[year] = hasSummer;
+              });
+
+              setWinterVisible(newWinterVisibility);
+              setSummerVisible(newSummerVisibility);
+            } else {
+              alert("Invalid plan file format.");
+            }
             } catch (err) {
               alert("Failed to import plan. Make sure it's a valid JSON file.");
               console.error("Import error:", err);
