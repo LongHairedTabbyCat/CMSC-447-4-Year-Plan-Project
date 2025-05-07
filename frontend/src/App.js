@@ -1005,7 +1005,6 @@ const commonUniversityAndGepRequirements = {
         <h2>Multi-Year Plan</h2>
 
         {error && <p className="error-message">{error}</p>}
-        <div className="semester-scroll-area">
             {years.map((year) => (
               <div className="year-container" key={year}>
                 <div className="year-header-controls">
@@ -1136,7 +1135,6 @@ const commonUniversityAndGepRequirements = {
               </button>
             </div>
           </div>
-        </div>
       </div>
     </>
   );

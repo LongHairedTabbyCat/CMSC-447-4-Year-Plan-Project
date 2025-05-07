@@ -41,7 +41,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  height: calc(100vh - 30px); 
+  height: calc(100vh - 70px);
   overflow-y: auto; 
   padding-right: 5px; 
 }
@@ -55,8 +55,9 @@ html, body {
   box-shadow: var(--box-shadow);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 30px); 
-  overflow-y: auto; 
+  height: calc(100vh - 70px);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .semesters h2 {
@@ -65,13 +66,6 @@ html, body {
   border-bottom: 1px solid var(--border-color);
   color: var(--text-color);
   font-size: 1.4em;
-}
-
-.semester-scroll-area {
-  overflow-y: auto;
-  max-height: calc(100vh - 180px);
-  display: flex;
-  flex-direction: column;
 }
 
 .degree-requirements, .course-search {
@@ -87,7 +81,6 @@ html, body {
   font-size: 1.3em;
   color: var(--text-color);
 }
-
 
 .degree-dropdown {
   width: 100%;
@@ -252,7 +245,6 @@ html, body {
   background-color: #ced4da;
 }
 
-
 .error-message {
     color: var(--danger-color);
     background-color: #f8d7da;
@@ -262,7 +254,6 @@ html, body {
     margin: 10px 0;
     font-size: 0.9em;
 }
-
 
 .year-container {
   display: flex;
