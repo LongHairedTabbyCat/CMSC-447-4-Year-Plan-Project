@@ -722,3 +722,69 @@ html, body {
 .course-box.conflict .expand-toggle-btn {
    
 }
+
+.top-bar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  background-color: var(--secondary-bg);
+  box-shadow: var(--box-shadow);
+  z-index: 10;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.settings-menu {
+  position: relative;
+}
+
+.settings-button {
+  background: var(--primary-accent);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.settings-button:hover {
+  background-color: var(--primary-accent-hover);
+}
+
+.settings-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: var(--box-shadow);
+  z-index: 100;
+  min-width: 160px;
+  padding: 8px 0;
+  flex-direction: column;
+}
+
+.settings-dropdown button {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  width: 100%;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-color);
+  right: 10px;
+}
+
+.settings-dropdown button:hover {
+  background-color: #f0f0f0;
+}
+
+.settings-menu:hover .settings-dropdown,
+.settings-dropdown:hover {
+  display: flex;
+}

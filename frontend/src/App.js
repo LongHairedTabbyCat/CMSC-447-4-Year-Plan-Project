@@ -762,6 +762,61 @@ const commonUniversityAndGepRequirements = {
 
   // --- RENDER ---
   return (
+  <>
+  <div className="top-bar">
+  <div className="settings-menu">
+    <button className="settings-button" title="Settings">Settings▾</button>
+    <div className="settings-dropdown">
+      <input
+        type="file"
+        accept=".json"
+        id="topbar-import-input"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            try {
+              const parsed = JSON.parse(event.target.result);
+              if (parsed.semesters && parsed.years) {
+                setSemesters(parsed.semesters);
+                setYears(parsed.years);
+              } else {
+                alert("Invalid plan file format.");
+              }
+            } catch (err) {
+              alert("Failed to import plan. Make sure it's a valid JSON file.");
+              console.error("Import error:", err);
+            }
+          };
+          reader.readAsText(file);
+          e.target.value = "";
+        }}
+      />
+      <button onClick={() => document.getElementById("topbar-import-input").click()}>
+        Import Plan
+      </button>
+      <button
+        onClick={() => {
+          const planData = { semesters, years };
+          const blob = new Blob([JSON.stringify(planData, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "my-4year-plan.json";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }}
+      >
+        Export Plan
+      </button>
+    </div>
+  </div>
+</div>
+
     <div className="container">
       {/* --- LEFT COLUMN --- */}
       <div className="left-column">
@@ -1127,6 +1182,7 @@ const commonUniversityAndGepRequirements = {
         </div>
       </div>
     </div>
+  </>
   );
 }
 
