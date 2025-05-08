@@ -763,7 +763,11 @@ const commonUniversityAndGepRequirements = {
   // --- RENDER ---
   return (
   <>
-  <div className="top-bar">
+  <header className="site-header">
+  <div className="header-content-left">
+    <img src="/umbc-logo.png" alt="UMBC Logo" className="header-logo" />
+    <h1 className="planner-title">UMBC Degree Planner</h1>
+  </div>
   <div className="settings-menu">
     <button className="settings-button" title="Settings">Settings▾</button>
     <div className="settings-dropdown">
@@ -828,7 +832,7 @@ const commonUniversityAndGepRequirements = {
       </button>
     </div>
   </div>
-</div>
+      </header>
 
     <div className="container">
       {/* --- LEFT COLUMN --- */}
@@ -1136,6 +1140,16 @@ const commonUniversityAndGepRequirements = {
             </div>
           </div>
       </div>
+      <footer className="site-footer">
+        <a
+          href="https://docs.google.com/forms/d/e/1FAIpQLSdT-G6yJmAvB1LkSB3STqOaK8jnKZZ0IVU47R5F-jEcYWBV9A/viewform?usp=dialog"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="feedback-button"
+        >
+          Feedback
+        </a>
+      </footer>
     </>
   );
 }
