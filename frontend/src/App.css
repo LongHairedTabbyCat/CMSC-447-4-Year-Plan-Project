@@ -843,7 +843,7 @@ html, body {
   --border-color: #333;
   --primary-accent: #90caf9;
   --primary-accent-hover: #64b5f6;
-  --danger-color: #ef5350;
+  --danger-color: #ff6b6b;
   --warning-bg: #442727;
   --warning-border: #e57373;
   --warning-text: #ffb4a2;
@@ -989,6 +989,15 @@ body {
   color: var(--primary-bg);
 }
 
+/* Conflict Message Styling */
+:root[data-theme='dark'] .conflict-detail {
+  color: #ff8a80 !important;
+}
+
+:root[data-theme='dark'] .conflict-detail * {
+  color: #ff8a80 !important;
+}
+
 /* Transition Targets */
 html,
 body,
@@ -1030,7 +1039,8 @@ body,
 .course-box-details p,
 .course-box-details strong,
 .question-mark,
-.ignore-prereq-btn {
-  transition: background-color 1.5s ease, color 1.5s ease, border-color 1.5s ease;
+.ignore-prereq-btn,
+.conflict-detail,
+.conflict-detail * {
+  transition: background-color 3s ease, color 3s ease, border-color 3s ease;
 }
-
