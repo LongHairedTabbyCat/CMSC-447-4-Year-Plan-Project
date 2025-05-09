@@ -1,6 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <style>
+      html[data-theme='dark'] {
+        background-color: #121212;
+        color: #eeeeee;
+      }
+    </style>
+    <script>
+      (function () {
+        try {
+          const darkMode = localStorage.getItem("darkMode");
+          const root = document.documentElement;
+
+          if (darkMode === "true") {
+            root.setAttribute("data-theme", "dark");
+          } else if (darkMode === "false") {
+            root.setAttribute("data-theme", "light");
+          } else {
+            // fallback to system preference
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+          }
+        } catch (e) {
+          console.error("Theme setup failed", e);
+        }
+      })();
+    </script>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
