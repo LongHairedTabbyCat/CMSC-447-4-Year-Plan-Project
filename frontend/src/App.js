@@ -46,6 +46,14 @@ function App() {
     return init;
   });
   const [expandedCourses, setExpandedCourses] = useState(new Set()); // Tracks expanded course items in planner
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("darkMode") === "true";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+    localStorage.setItem("darkMode", darkMode);
+  }, [darkMode]);
 
   // Derived state/maps
   const yearMap = years.reduce((acc, year) => {
@@ -829,6 +837,11 @@ const commonUniversityAndGepRequirements = {
         }}
       >
         Export Plan
+      </button>
+      <button
+          onClick={() => setDarkMode(prev => !prev)}
+        >
+          {darkMode ? "Light Mode" : "Dark Mode"}
       </button>
     </div>
   </div>
