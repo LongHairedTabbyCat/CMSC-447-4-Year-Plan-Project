@@ -764,6 +764,7 @@ const commonUniversityAndGepRequirements = {
         return nextExpanded;
     });
 
+
     setWinterVisible((prev) => { const updated = { ...prev }; delete updated[year]; return updated; });
     setSummerVisible((prev) => { const updated = { ...prev }; delete updated[year]; return updated; });
 
@@ -776,6 +777,50 @@ const commonUniversityAndGepRequirements = {
     setYears((prev) => prev.filter((y) => y !== year));
     checkPrerequisitesWithAPI(nextState);
   };
+
+  const printPlanner = () => {
+  const plannerNode = plannerRef.current;
+  if (!plannerNode) return;
+
+  const clone = plannerNode.cloneNode(true);
+  clone.style.all = "unset";
+  clone.style.display = "block";
+  clone.style.width = "100%";
+  clone.style.backgroundColor = "white";
+  clone.style.color = "black";
+
+  const wrapper = document.getElementById("print-planner-wrapper");
+  wrapper.innerHTML = "";
+  wrapper.appendChild(clone);
+
+  const originalTheme = document.documentElement.getAttribute("data-theme");
+  document.documentElement.setAttribute("data-theme", "light");
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return;
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Print Plan</title>
+        <style>
+          body { margin: 0; padding: 20px; font-family: sans-serif; }
+          .course-box { page-break-inside: avoid; }
+        </style>
+      </head>
+      <body>${clone.outerHTML}</body>
+    </html>
+  `);
+
+  printWindow.document.close();
+
+  printWindow.onload = () => {
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+    document.documentElement.setAttribute("data-theme", originalTheme || "");
+  };
+};
 
 const handleDownloadPDF = () => {
   const input = plannerRef.current;
@@ -915,6 +960,10 @@ const handleDownloadPDF = () => {
         >
           {darkMode ? "Light Mode" : "Dark Mode"}
       </button>
+      <button onClick={printPlanner}>
+          Print Plan
+      </button>
+
     </div>
   </div>
       </header>
@@ -1344,6 +1393,10 @@ const handleDownloadPDF = () => {
             </div>
           </div>
       </div>
+      <div style={{ display: "none" }}>
+          <div id="print-planner-wrapper" />
+      </div>
+
       <footer className="site-footer">
         <a
           href="https://docs.google.com/forms/d/e/1FAIpQLSdT-G6yJmAvB1LkSB3STqOaK8jnKZZ0IVU47R5F-jEcYWBV9A/viewform?usp=dialog"
