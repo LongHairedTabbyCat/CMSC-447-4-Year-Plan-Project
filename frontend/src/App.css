@@ -855,7 +855,7 @@ html, body {
   border-radius: 6px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); 
   z-index: 101; 
-  min-width: 160px;
+  min-width: 200px;
   padding: 8px 0;
   flex-direction: column;
 }
@@ -1081,8 +1081,6 @@ body {
   color: var(--primary-accent-hover);
   border-color: var(--primary-accent);
 }
-
-
 
 html,
 body,
