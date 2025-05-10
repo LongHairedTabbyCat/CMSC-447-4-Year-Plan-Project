@@ -1,10 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react"; // Added useMemo
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import "./App.css";
 
 const API_BASE_URL = "http://localhost:5000";
 
 // Start with the initial 4 base years
 const initialYears = ["Year1", "Year2", "Year3", "Year4"];
+
+function getSemesterCreditLimits(semesterKey) {
+  const lower = semesterKey.toLowerCase();
+  if (lower.includes("winter")) {
+    return { min: 0, max: 4.5, type: 'max', recText: "Up to 4.5 credits" };
+  }
+  if (lower.includes("summer")) {
+    return { min: 0, max: 16, type: 'max', recText: "Up to 16 credits" };
+  }
+  // Default to Fall/Spring
+  return { min: 12, max: 19, type: 'range', recText: "12-19 credits" };
+}
 
 function App() {
   // State declarations
@@ -426,29 +438,22 @@ const commonUniversityAndGepRequirements = {
 
       const conflictsMap = new Map();
       (result.missing_prerequisites || []).forEach(conflict => {
-        // --- MODIFICATION START: Check if the course actually has prerequisites ---
         const courseDetails = allCourses.find(c => c.course_id === conflict.course_id);
 
         let hasNoActualPrerequisites = false;
         if (courseDetails) {
-            // Check if prerequisite_stmt indicates no prerequisites.
-            // The prerequisite_stmt is defaulted to '' if null/undefined during course fetching.
             const stmt = courseDetails.prerequisite_stmt;
             hasNoActualPrerequisites =
-                !stmt || // Covers empty string
+                !stmt ||
                 stmt.trim().toLowerCase() === "n/a" ||
-                stmt.trim().toLowerCase() === "none"; // Add other common "no prerequisite" strings if needed
+                stmt.trim().toLowerCase() === "none";
         }
-        // If courseDetails is undefined (shouldn't happen for a course in the plan),
-        // hasNoActualPrerequisites remains false, and the conflict will be shown (safer).
 
         if (!hasNoActualPrerequisites) {
-            // Only add to conflictsMap if it's NOT a "no prerequisite" course according to frontend data
             conflictsMap.set(conflict.course_id, conflict.message);
         } else {
             console.log(`Ignoring backend-reported conflict for course ${conflict.course_id} as its prerequisite_stmt ("${courseDetails?.prerequisite_stmt}") indicates no actual prerequisites.`);
         }
-        // --- MODIFICATION END ---
       });
 
       const updatedSemestersWithConflicts = { ...currentSemestersData };
@@ -470,7 +475,7 @@ const commonUniversityAndGepRequirements = {
       console.error("Failed to check prerequisites:", error);
       setError(`Prerequisite check failed: ${error.message}. Check backend connection.`);
     }
-  }, [years, setError, allCourses]); // Added allCourses as a dependency
+  }, [years, setError, allCourses]);
 
   // Recommended Credits Tooltip Helper
   function getRecommendedCredits(semesterKey) {
@@ -499,7 +504,7 @@ const commonUniversityAndGepRequirements = {
           course_num: course.course_num ?? null,
           course_desc: course.course_desc ?? '',
           course_credits: course.course_credits ?? 0,
-          prerequisite_stmt: course.prerequisite_stmt ?? '', // Default to empty string
+          prerequisite_stmt: course.prerequisite_stmt ?? '',
           course_attributes: course.course_attributes ?? [],
           attribute_values: course.attribute_values ?? [],
           availability: course.availability ?? null,
@@ -562,6 +567,7 @@ const commonUniversityAndGepRequirements = {
       if (!courseFound) {
           console.warn(`Course ID ${courseId} not found in semester ${semesterKey} while toggling ignore flag.`);
       }
+      // No need to call checkPrerequisitesWithAPI here as this is a UI-only state for display
       return updatedSemesters;
     });
   };
@@ -767,6 +773,12 @@ const commonUniversityAndGepRequirements = {
     checkPrerequisitesWithAPI(nextState);
   };
 
+  const totalPlanCredits = useMemo(() => {
+    return Object.values(semesters)
+      .flat()
+      .reduce((total, course) => total + (Number(course.course_credits) || 0), 0);
+  }, [semesters]);
+
 
   // --- RENDER ---
   return (
@@ -798,7 +810,7 @@ const commonUniversityAndGepRequirements = {
               const newWinterVisibility = {};
               const newSummerVisibility = {};
 
-              parsed.years.forEach((year) => {
+              (parsed.years || initialYears).forEach((year) => { // Use initialYears as fallback
                 const hasWinter = parsed.semesters[`${year}Winter`]?.length > 0;
                 const hasSummer = parsed.semesters[`${year}Summer`]?.length > 0;
                 newWinterVisibility[year] = hasWinter;
@@ -807,6 +819,10 @@ const commonUniversityAndGepRequirements = {
 
               setWinterVisible(newWinterVisibility);
               setSummerVisible(newSummerVisibility);
+
+              // Check prerequisites after import
+              checkPrerequisitesWithAPI(parsed.semesters);
+
             } else {
               alert("Invalid plan file format.");
             }
@@ -902,7 +918,7 @@ const commonUniversityAndGepRequirements = {
                         </button>
                         {isOpen && (
                         <div className="category-content">
-                            {category.description && <p>{category.description}</p>}
+                            {category.description && <p>{category.description.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}</p>}
                             {category.notes && Array.isArray(category.notes) && (
                               <ul>
                                {category.notes.map((note, idx) => <li key={`${categoryKey}-note-${idx}`}>{note}</li>)}
@@ -1019,132 +1035,251 @@ const commonUniversityAndGepRequirements = {
       </div> {/* End Left Column */}
 
       <div className="semesters">
-        <h2>Multi-Year Plan</h2>
+        <div className="semesters-main-header">
+            <h2>Multi-Year Plan</h2>
+            {(() => {
+                let totalCreditsWarningMessage = "";
+                if (totalPlanCredits > 0 && totalPlanCredits < 120) {
+                    totalCreditsWarningMessage = `Overall total credits (${totalPlanCredits}) are below the typical minimum of 120 for graduation.`;
+                }
+                const totalCreditsTitle = totalCreditsWarningMessage || `Overall Total: ${totalPlanCredits} Cr. (Aim for 120+ for graduation).`;
+
+                return (
+                    <div
+                        className={`total-plan-credits-display ${totalCreditsWarningMessage ? 'credit-warning' : ''}`}
+                        title={totalCreditsTitle}
+                    >
+                        Overall Total: {totalPlanCredits} Cr
+                    </div>
+                );
+            })()}
+        </div>
 
         {error && <p className="error-message">{error}</p>}
-            {years.map((year) => (
-              <div className="year-container" key={year}>
-                <div className="year-header-controls">
-                    <h3 className="year-header">{yearMap[year]}</h3>
-                    {!initialYears.includes(year) && (
-                      <button className="remove-year-button" onClick={() => removeYear(year)} title={`Remove ${yearMap[year]}`}> × </button>
-                    )}
-                </div>
+            {years.map((year) => {
+                let yearMinRecommended = 0;
+                let yearMaxRecommended = 0;
+                let yearActiveSemestersRecTextParts = [];
 
-                {["Fall", "Winter", "Spring", "Summer"].map(season => {
-                  const semesterKey = year + season;
-                  const isOptional = season === "Winter" || season === "Summer";
-                  const isVisible = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
-                  const toggleFunc = isOptional ? (season === "Winter" ? toggleWinter : toggleSummer) : null;
-                  const currentVisibility = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
+                ["Fall", "Winter", "Spring", "Summer"].forEach(season => {
+                    const semesterKey = year + season;
+                    const isOptional = season === "Winter" || season === "Summer";
+                    const isSemesterVisible = isOptional
+                      ? (season === "Winter" ? winterVisible[year] : summerVisible[year])
+                      : true;
 
-                  return (
-                    <React.Fragment key={semesterKey}>
-                      {isOptional && (
-                        <div className="horizontal-line-container" onClick={() => toggleFunc(year)} title={currentVisibility ? `Hide ${season}` : `Show ${season}`} role="button" tabIndex={0} aria-expanded={currentVisibility}>
-                          <div className="plus-circle" aria-hidden="true">{currentVisibility ? "–" : "+"}</div>
+                    if (isSemesterVisible) {
+                        const limits = getSemesterCreditLimits(semesterKey);
+                        yearMinRecommended += limits.min;
+                        yearMaxRecommended += limits.type === 'range' ? limits.max : limits.max; // For 'max' type, min is 0, so max is the upper bound
+                        yearActiveSemestersRecTextParts.push(`${season}: ${limits.recText}`);
+                    }
+                });
+
+                const yearTotalCredits = ["Fall", "Winter", "Spring", "Summer"].reduce((acc, season) => {
+                    const semesterKey = year + season;
+                    const isOptional = season === "Winter" || season === "Summer";
+                    const isSemesterVisible = isOptional
+                      ? (season === "Winter" ? winterVisible[year] : summerVisible[year])
+                      : true;
+
+                    if (isSemesterVisible && semesters[semesterKey]) {
+                      const semesterCredits = (semesters[semesterKey] || []).reduce(
+                        (sAcc, course) => sAcc + (Number(course.course_credits) || 0), 0
+                      );
+                      return acc + semesterCredits;
+                    }
+                    return acc;
+                  }, 0);
+
+                let yearCreditWarningMessage = "";
+                if (yearTotalCredits > 0) {
+                    if (yearTotalCredits < yearMinRecommended) {
+                        yearCreditWarningMessage = `Year total (${yearTotalCredits} Cr) is below the recommended minimum of ${yearMinRecommended} Cr for active semesters.`;
+                    } else if (yearTotalCredits > yearMaxRecommended) {
+                        yearCreditWarningMessage = `Year total (${yearTotalCredits} Cr) exceeds the recommended maximum of ${yearMaxRecommended} Cr for active semesters.`;
+                    }
+                }
+                const yearRecommendedRangeText = `Recommended for active semesters: ${yearMinRecommended}-${yearMaxRecommended} Cr. (${yearActiveSemestersRecTextParts.join(', ')})`;
+                const yearCreditsTitle = yearCreditWarningMessage
+                    ? `${yearCreditWarningMessage} (${yearRecommendedRangeText})`
+                    : (yearTotalCredits > 0
+                        ? `Year Total: ${yearTotalCredits} Cr. ${yearRecommendedRangeText}`
+                        : `No courses in ${yearMap[year]}. ${yearRecommendedRangeText}`);
+
+
+                return (
+                  <div className="year-container" key={year}>
+                    <div className="year-header-controls">
+                        <div className="year-header-left">
+                            <h3 className="year-header">{yearMap[year]}</h3>
                         </div>
-                      )}
-
-                      {isVisible && (
-                        <div
-                          className="semester-box"
-                          onDragOver={handleDragOver}
-                          onDrop={(e) => handleDrop(e, semesterKey)}
-                          aria-label={`${yearMap[year]} ${season} Semester Drop Zone`}
-                        >
-                          <div className="semester-title-container">
-                            <div className="semester-title">{season}</div>
-                            <div className="question-mark-container" title={getRecommendedCredits(semesterKey)}>
-                              <span className="question-mark" aria-hidden="true">?</span>
+                        <div className="year-header-right">
+                            <div
+                                className={`year-credits-display ${yearCreditWarningMessage ? 'credit-warning' : ''}`}
+                                title={yearCreditsTitle}
+                            >
+                                Total: {yearTotalCredits} Cr
                             </div>
-                          </div>
-                          <div className="courses" role="list" aria-label={`Courses in ${yearMap[year]} ${season}`}>
-                            {(semesters[semesterKey] || []).map((course) => {
-                              const itemKey = `${semesterKey}-${course.course_id}`;
-                              const isExpanded = expandedCourses.has(itemKey);
-                              const conflictMessage = course.conflict;
-                              const isIgnored = course.ignorePrereqs === true;
-                              const showConflictStyle = conflictMessage && !isIgnored;
+                            {!initialYears.includes(year) && (
+                            <button className="remove-year-button" onClick={() => removeYear(year)} title={`Remove ${yearMap[year]}`}> × </button>
+                            )}
+                        </div>
+                    </div>
 
-                              return (
-                                <div
-                                  key={itemKey}
-                                  className={`course-box ${showConflictStyle ? "conflict" : ""} ${isExpanded ? "expanded" : ""} ${isIgnored ? "ignored-indicator" : ""}`}
-                                  draggable
-                                  onDragStart={(evt) => handleDragStart(evt, course, semesterKey)}
-                                  title={
-                                    isIgnored
-                                      ? `${course.catalog_name}: Prerequisite check ignored by user. ${conflictMessage ? `(Original conflict: ${conflictMessage})` : ''}`
-                                      : conflictMessage
-                                      ? `Conflict: ${conflictMessage}`
-                                      : `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`
-                                  }
-                                  role="listitem"
-                                >
-                                  <div className="course-box-header">
-                                    <button
-                                        className="expand-toggle-btn"
-                                        onClick={() => toggleCourseExpansion(itemKey)}
-                                        title={isExpanded ? "Collapse Details" : "Expand Details"}
-                                        aria-expanded={isExpanded}
-                                        aria-controls={`details-${itemKey}`}
-                                    >
-                                        {isExpanded ? "▼" : "▶"}
-                                    </button>
-                                    <strong className="course-box-title">{course.catalog_name}</strong>
-                                    <button
-                                        className="remove-btn"
-                                        onClick={() => removeCourse(semesterKey, course)}
-                                        title={`Remove ${course.catalog_name}`}
-                                        aria-label={`Remove ${course.catalog_name}`}
-                                    >
-                                        ✖
-                                    </button>
+                    {["Fall", "Winter", "Spring", "Summer"].map(season => {
+                      const semesterKey = year + season;
+                      const isOptional = season === "Winter" || season === "Summer";
+                      const isVisible = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
+                      const toggleFunc = isOptional ? (season === "Winter" ? () => toggleWinter(year) : () => toggleSummer(year)) : null;
+                      const currentVisibility = isOptional ? (season === "Winter" ? winterVisible[year] : summerVisible[year]) : true;
+
+                      const semesterCourses = semesters[semesterKey] || [];
+                      const semesterTotalCredits = semesterCourses.reduce((acc, course) => acc + (Number(course.course_credits) || 0), 0);
+
+                      const creditLimits = getSemesterCreditLimits(semesterKey);
+                      let creditWarningMessage = "";
+
+                      if (semesterTotalCredits > 0) {
+                        if (creditLimits.type === 'range') {
+                          if (semesterTotalCredits < creditLimits.min) {
+                            creditWarningMessage = `Credits (${semesterTotalCredits}) are below recommended minimum of ${creditLimits.min}.`;
+                          } else if (semesterTotalCredits > creditLimits.max) {
+                            creditWarningMessage = `Credits (${semesterTotalCredits}) exceed recommended maximum of ${creditLimits.max}.`;
+                          }
+                        } else if (creditLimits.type === 'max') {
+                          if (semesterTotalCredits > creditLimits.max) {
+                            creditWarningMessage = `Credits (${semesterTotalCredits}) exceed recommended maximum of ${creditLimits.max}.`;
+                          }
+                        }
+                        if (creditWarningMessage) {
+                            creditWarningMessage += ` (Recommended: ${creditLimits.recText})`;
+                        }
+                      }
+
+                      const semesterCreditsTitle = creditWarningMessage ||
+                        (semesterTotalCredits > 0
+                            ? `Total: ${semesterTotalCredits} Cr. Recommended: ${creditLimits.recText}.`
+                            : `No courses in ${season}. Recommended: ${creditLimits.recText}.`);
+
+                      return (
+                        <React.Fragment key={semesterKey}>
+                          {isOptional && (
+                            <div className="horizontal-line-container" onClick={() => toggleFunc(year)} title={currentVisibility ? `Hide ${season}` : `Show ${season}`} role="button" tabIndex={0} aria-expanded={currentVisibility}>
+                              <div className="plus-circle" aria-hidden="true">{currentVisibility ? "–" : "+"}</div>
+                            </div>
+                          )}
+
+                          {isVisible && (
+                            <div
+                              className="semester-box"
+                              onDragOver={handleDragOver}
+                              onDrop={(e) => handleDrop(e, semesterKey)}
+                              aria-label={`${yearMap[year]} ${season} Semester Drop Zone`}
+                            >
+                              <div className="semester-title-container">
+                                <div className="semester-title">{season}</div>
+                                <div className="semester-header-right-items">
+                                  <div
+                                    className={`semester-credits-display ${creditWarningMessage ? 'credit-warning' : ''}`}
+                                    title={semesterCreditsTitle}
+                                  >
+                                    {semesterTotalCredits} Cr
                                   </div>
-                                  {isExpanded && (
-                                    <div className="course-box-details" id={`details-${itemKey}`}>
-                                      <div className="details-main-content">
-                                        <p><strong>Name:</strong> {course.course_name}</p>
-                                        <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
-                                        {course.category && <p><strong>Category:</strong> {course.category}</p>}
-                                        {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
-                                        {/* Display prerequisite_stmt, useful for debugging or user info */}
-                                        {course.prerequisite_stmt && <p><strong>Prerequisites (Stated):</strong> {course.prerequisite_stmt}</p>}
+                                  {/* REMOVED QUESTION MARK ICON
+                                  <div className="question-mark-container" title={getRecommendedCredits(semesterKey)}>
+                                    <span className="question-mark" aria-hidden="true">?</span>
+                                  </div>
+                                  */}
+                                </div>
+                              </div>
+                              <div className="courses" role="list" aria-label={`Courses in ${yearMap[year]} ${season}`}>
+                                {/* ... (course mapping and rendering logic remains the same) ... */}
+                                {semesterCourses.map((course) => {
+                                  const itemKey = `${semesterKey}-${course.course_id}`;
+                                  const isExpanded = expandedCourses.has(itemKey);
+                                  const conflictMessage = course.conflict;
+                                  const isIgnored = course.ignorePrereqs === true;
+                                  const showConflictStyle = conflictMessage && !isIgnored;
 
-
-                                        {conflictMessage && !isIgnored && (
-                                          <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>
-                                        )}
-                                        {conflictMessage && isIgnored && (
-                                          <p className="ignored-conflict-detail">
-                                            <strong>Conflict Ignored:</strong> <span className="original-conflict-text">{conflictMessage}</span>
-                                          </p>
-                                        )}
-                                      </div>
-
-                                      <div className="details-actions">
+                                  return (
+                                    <div
+                                      key={itemKey}
+                                      className={`course-box ${showConflictStyle ? "conflict" : ""} ${isExpanded ? "expanded" : ""} ${isIgnored ? "ignored-indicator" : ""}`}
+                                      draggable
+                                      onDragStart={(evt) => handleDragStart(evt, course, semesterKey)}
+                                      title={
+                                        isIgnored
+                                        ? `${course.catalog_name}: Prerequisite check ignored by user. ${conflictMessage ? `(Original conflict: ${conflictMessage})` : ''}`
+                                        : conflictMessage
+                                        ? `Conflict: ${conflictMessage}`
+                                        : `${course.catalog_name}: ${course.course_name} - Click to expand/collapse`
+                                      }
+                                      role="listitem"
+                                    >
+                                      <div className="course-box-header">
                                         <button
-                                          className={`ignore-prereq-btn ${isIgnored ? 'active' : ''}`}
-                                          onClick={() => toggleIgnorePrereqs(semesterKey, course.course_id)}
-                                          title={isIgnored ? "Re-enable prerequisite checking for this course" : "Ignore prerequisites for this course"}
+                                            className="expand-toggle-btn"
+                                            onClick={() => toggleCourseExpansion(itemKey)}
+                                            title={isExpanded ? "Collapse Details" : "Expand Details"}
+                                            aria-expanded={isExpanded}
+                                            aria-controls={`details-${itemKey}`}
                                         >
-                                          {isIgnored ? "Undo Ignore" : "Ignore"}
+                                            {isExpanded ? "▼" : "▶"}
+                                        </button>
+                                        <strong className="course-box-title">{course.catalog_name}</strong>
+                                        <button
+                                            className="remove-btn"
+                                            onClick={() => removeCourse(semesterKey, course)}
+                                            title={`Remove ${course.catalog_name}`}
+                                            aria-label={`Remove ${course.catalog_name}`}
+                                        >
+                                            ✖
                                         </button>
                                       </div>
+                                      {isExpanded && (
+                                        <div className="course-box-details" id={`details-${itemKey}`}>
+                                          <div className="details-main-content">
+                                            <p><strong>Name:</strong> {course.course_name}</p>
+                                            <p><strong>Credits:</strong> {course.course_credits ?? 'N/A'}</p>
+                                            {course.category && <p><strong>Category:</strong> {course.category}</p>}
+                                            {course.course_desc && <p><strong>Description:</strong> {course.course_desc}</p>}
+                                            {course.prerequisite_stmt && <p><strong>Prerequisites (Stated):</strong> {course.prerequisite_stmt}</p>}
+
+
+                                            {conflictMessage && !isIgnored && (
+                                              <p className="conflict-detail"><strong>Conflict:</strong> {conflictMessage}</p>
+                                            )}
+                                            {conflictMessage && isIgnored && (
+                                              <p className="ignored-conflict-detail">
+                                                <strong>Conflict Ignored:</strong> <span className="original-conflict-text">{conflictMessage}</span>
+                                              </p>
+                                            )}
+                                          </div>
+
+                                          <div className="details-actions">
+                                            <button
+                                              className={`ignore-prereq-btn ${isIgnored ? 'active' : ''}`}
+                                              onClick={() => toggleIgnorePrereqs(semesterKey, course.course_id)}
+                                              title={isIgnored ? "Re-enable prerequisite checking for this course" : "Ignore prerequisites for this course"}
+                                            >
+                                              {isIgnored ? "Undo Ignore" : "Ignore"}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            ))}
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                );
+            })}
 
             <div className="add-year-container">
               <button className="add-year-button" onClick={addYear}>
