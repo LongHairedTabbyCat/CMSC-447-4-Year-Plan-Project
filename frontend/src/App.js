@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import "./App.css";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -61,6 +63,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
+
+  const plannerRef = React.useRef(); // For printing PDF
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
@@ -773,6 +777,55 @@ const commonUniversityAndGepRequirements = {
     checkPrerequisitesWithAPI(nextState);
   };
 
+const handleDownloadPDF = () => {
+  const input = plannerRef.current;
+  if (!input) return;
+
+  const originalScrollY = window.scrollY;
+  const originalHeight = input.style.height;
+  const originalOverflow = input.style.overflow;
+  const originalTheme = document.documentElement.getAttribute("data-theme");
+
+  // Force light mode for export
+  document.documentElement.setAttribute("data-theme", "light");
+
+  input.style.height = input.scrollHeight + "px";
+  input.style.overflow = "visible";
+
+  setTimeout(() => {
+    html2canvas(input, { scale: 2, useCORS: true }).then((canvas) => {
+      // Restore theme and styles
+      document.documentElement.setAttribute("data-theme", originalTheme || "");
+      input.style.height = originalHeight;
+      input.style.overflow = originalOverflow;
+      window.scrollTo(0, originalScrollY);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position -= pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save("my-planned-courses.pdf");
+    });
+  }, 500);
+};
+
   const totalPlanCredits = useMemo(() => {
     return Object.values(semesters)
       .flat()
@@ -853,6 +906,9 @@ const commonUniversityAndGepRequirements = {
         }}
       >
         Export Plan
+      </button>
+      <button onClick={handleDownloadPDF}>
+        Download Plan PDF
       </button>
       <button
           onClick={() => setDarkMode(prev => !prev)}
@@ -1034,7 +1090,7 @@ const commonUniversityAndGepRequirements = {
         </div>
       </div> {/* End Left Column */}
 
-      <div className="semesters">
+      <div className="semesters" ref={plannerRef}>
         <div className="semesters-main-header">
             <h2>Multi-Year Plan</h2>
             {(() => {
