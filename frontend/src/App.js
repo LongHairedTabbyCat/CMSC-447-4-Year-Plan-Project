@@ -783,32 +783,147 @@ const commonUniversityAndGepRequirements = {
   if (!plannerNode) return;
 
   const clone = plannerNode.cloneNode(true);
+
   clone.style.all = "unset";
   clone.style.display = "block";
   clone.style.width = "100%";
   clone.style.backgroundColor = "white";
   clone.style.color = "black";
 
-  const wrapper = document.getElementById("print-planner-wrapper");
-  wrapper.innerHTML = "";
-  wrapper.appendChild(clone);
-
   const originalTheme = document.documentElement.getAttribute("data-theme");
   document.documentElement.setAttribute("data-theme", "light");
 
+  let stylesHtml = "";
+  document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+    stylesHtml += link.outerHTML;
+  });
+  document.querySelectorAll('style').forEach(styleTag => {
+    stylesHtml += styleTag.outerHTML;
+  });
+
   const printWindow = window.open("", "_blank");
-  if (!printWindow) return;
+  if (!printWindow) {
+    document.documentElement.setAttribute("data-theme", originalTheme || "");
+    alert("Could not open print window. Please disable your pop-up blocker.");
+    return;
+  }
 
   printWindow.document.write(`
-    <html>
+    <html data-theme="light">
       <head>
         <title>Print Plan</title>
+        ${stylesHtml}
         <style>
-          body { margin: 0; padding: 20px; font-family: sans-serif; }
-          .course-box { page-break-inside: avoid; }
+
+          html, body {
+            background-color: white !important;
+            color: black !important;
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            font-family: sans-serif;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          @media print {
+            .site-header,
+            .site-footer,
+            .settings-menu,
+            .plan-actions,
+            .add-year-button,
+            .remove-year-button,
+            .horizontal-line-container,
+            .search-input,
+            .filters,
+            .remove-btn,
+            .expand-toggle-btn,
+            .left-column::-webkit-scrollbar,
+            .semesters::-webkit-scrollbar,
+            .search-results::-webkit-scrollbar {
+              display: none !important;
+            }
+
+            .hide-on-print {
+              display: none !important;
+            }
+          }
+
+          @media print {
+            * {
+              transition: none !important;
+              box-shadow: none !important;
+            }
+
+            .container {
+              display: block !important;
+              height: auto !important;
+              max-height: none !important;
+              overflow: visible !important;
+              padding: 0 !important;
+              gap: 20px !important;
+            }
+
+            .left-column,
+            .semesters {
+              width: 100% !important;
+              max-width: none !important;
+              overflow-y: visible !important;
+              height: auto !important;
+              max-height: none !important;
+              float: none !important;
+              padding: 10px !important;
+              margin-bottom: 20px;
+              border: 1px solid #ccc !important;
+            }
+
+            .search-results {
+              max-height: none !important;
+              overflow-y: visible !important;
+              height: auto !important;
+            }
+
+            .category-content,
+            .course-box-details
+            {
+              display: block !important;
+              max-height: none !important;
+              overflow: visible !important;
+              height: auto !important;
+            }
+
+            .course-box,
+            .semester-box,
+            .year-container,
+            .requirement-category {
+              page-break-inside: avoid !important;
+            }
+
+            body, p, li, td, th {
+              font-size: 10pt !important;
+            }
+            h1 { font-size: 16pt !important; }
+            h2 { font-size: 14pt !important; }
+            h3 { font-size: 12pt !important; }
+
+            .degree-requirements, .course-search, .year-container, .semester-box, .course-box {
+                border: 1px solid #999 !important;
+            }
+            .course-box.conflict {
+                background-color: #ffeeee !important; /* Lighter warning for print */
+                border: 1px solid #dd9999 !important;
+            }
+            .course-box.conflict .conflict-detail,
+            .course-box.conflict .course-box-title {
+                color: #8B0000 !important; /* Dark red for text */
+            }
+          }
         </style>
       </head>
-      <body>${clone.outerHTML}</body>
+      <body>
+        ${clone.outerHTML}
+      </body>
     </html>
   `);
 
@@ -816,10 +931,25 @@ const commonUniversityAndGepRequirements = {
 
   printWindow.onload = () => {
     printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-    document.documentElement.setAttribute("data-theme", originalTheme || "");
+    setTimeout(() => {
+      try {
+        printWindow.print();
+      } catch (e) {
+        console.error("Printing failed:", e);
+        alert("An error occurred while trying to print.");
+      } finally {
+        printWindow.close();
+        document.documentElement.setAttribute("data-theme", originalTheme || "");
+      }
+    }, 300);
   };
+
+  printWindow.onafterprint = () => {
+      document.documentElement.setAttribute("data-theme", originalTheme || "");
+  };
+  if (!printWindow || printWindow.closed || typeof printWindow.closed=='undefined') {
+      document.documentElement.setAttribute("data-theme", originalTheme || "");
+  }
 };
 
 const handleDownloadPDF = () => {
