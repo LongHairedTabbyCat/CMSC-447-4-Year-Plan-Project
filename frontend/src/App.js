@@ -20,6 +20,23 @@ function getSemesterCreditLimits(semesterKey) {
   return { min: 12, max: 19, type: 'range', recText: "12-19 credits" };
 }
 
+function serializeSetMap(completed) {
+  const serializable = {};
+  for (const degree in completed) {
+    serializable[degree] = Array.from(completed[degree]);
+  }
+  return serializable;
+}
+
+// Helper function to deserialize Sets from JSON import
+function deserializeSetMap(serializable) {
+  const deserialized = {};
+  for (const degree in serializable) {
+    deserialized[degree] = new Set(serializable[degree]);
+  }
+  return deserialized;
+}
+
 function App() {
   // State declarations
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,6 +80,9 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
+
+  const [completedRequirements, setCompletedRequirements] = useState({});
+  const [checkedRequirementItems, setCheckedRequirementItems] = useState({});
 
   const plannerRef = React.useRef(); // For printing PDF
 
@@ -397,6 +417,79 @@ const commonUniversityAndGepRequirements = {
 
 
   // --- Functions ---
+
+  const degreeCompletionPercentage = useMemo(() => {
+    if (!selectedDegree || !degreeRequirements[selectedDegree]) {
+      return { percentage: 0, status: 'default' }; // Default if no degree selected or no requirements
+    }
+
+    const requirementsForDegree = degreeRequirements[selectedDegree];
+    // Filter out the 'notes' array if it exists, as it's handled differently or might not be a "completable" item in the same way
+    // Only count categories that are objects with a 'title' (standard requirement structure)
+    const completableCategories = Object.keys(requirementsForDegree).filter(
+      key => typeof requirementsForDegree[key] === 'object' && requirementsForDegree[key] !== null && requirementsForDegree[key].title
+    );
+
+    const totalRelevantCategories = completableCategories.length;
+
+    if (totalRelevantCategories === 0) {
+      return { percentage: 0, status: 'default' }; // No categories to complete
+    }
+
+    const completedForThisDegree = completedRequirements[selectedDegree] || new Set();
+    let completedCount = 0;
+    completedForThisDegree.forEach(completedKey => {
+      if (completableCategories.includes(completedKey)) {
+        completedCount++;
+      }
+    });
+
+    const percentage = totalRelevantCategories > 0 ? (completedCount / totalRelevantCategories) * 100 : 0;
+
+    let status = 'default';
+    if (percentage === 100) {
+      status = 'complete';
+    } else if (percentage > 0 && percentage < 100) {
+      status = 'warning';
+    }
+    // if percentage is 0, status remains 'default'
+
+    return { percentage: Math.round(percentage), status };
+  }, [selectedDegree, completedRequirements, degreeRequirements]);
+
+  // --- Function to toggle completion state ---
+  const toggleRequirementComplete = useCallback((degree, categoryKey) => {
+    if (!degree) return; // Don't do anything if no degree is selected
+
+    setCompletedRequirements(prev => {
+        const currentCompletions = new Set(prev[degree] || []); // Get Set for current degree or empty Set
+        if (currentCompletions.has(categoryKey)) {
+            currentCompletions.delete(categoryKey);
+        } else {
+            currentCompletions.add(categoryKey);
+        }
+        // Create a new object for the state update
+        const newState = { ...prev };
+        newState[degree] = currentCompletions; // Update the Set for the specific degree
+        return newState;
+    });
+  }, []); // No dependencies needed as degree and categoryKey are passed in
+
+  const toggleCheckedRequirementItem = useCallback((degree, itemKey) => {
+    if (!degree) return;
+
+    setCheckedRequirementItems(prev => {
+        const currentDegreeItems = new Set(prev[degree] || []);
+        if (currentDegreeItems.has(itemKey)) {
+            currentDegreeItems.delete(itemKey);
+        } else {
+            currentDegreeItems.add(itemKey);
+        }
+        const newState = { ...prev };
+        newState[degree] = currentDegreeItems;
+        return newState;
+    });
+  }, []);
 
   // Toggle Course Expansion in Planner
   const toggleCourseExpansion = (itemKey) => {
@@ -1019,7 +1112,7 @@ const handleDownloadPDF = () => {
   <div className="settings-menu">
     <button className="settings-button" title="Settings">Settings▾</button>
     <div className="settings-dropdown">
-      <input
+            <input
         type="file"
         accept=".json"
         id="topbar-import-input"
@@ -1030,10 +1123,21 @@ const handleDownloadPDF = () => {
           const reader = new FileReader();
           reader.onload = (event) => {
             try {
+
               const parsed = JSON.parse(event.target.result);
+
             if (parsed.semesters && parsed.years) {
               setSemesters(parsed.semesters);
               setYears(parsed.years);
+
+              // Restore completed requirements state
+              setCompletedRequirements(
+                  deserializeSetMap(parsed.completedRequirements || {}) // ADD THIS LINE
+              );
+
+              setCheckedRequirementItems(
+                    deserializeSetMap(parsed.checkedRequirementItems || {}) // ADD THIS
+              );
 
               const newWinterVisibility = {};
               const newSummerVisibility = {};
@@ -1052,11 +1156,16 @@ const handleDownloadPDF = () => {
               checkPrerequisitesWithAPI(parsed.semesters);
 
             } else {
+
               alert("Invalid plan file format.");
+
             }
+
             } catch (err) {
+
               alert("Failed to import plan. Make sure it's a valid JSON file.");
               console.error("Import error:", err);
+
             }
           };
           reader.readAsText(file);
@@ -1068,7 +1177,14 @@ const handleDownloadPDF = () => {
       </button>
       <button
         onClick={() => {
-          const planData = { semesters, years };
+
+          const planData = {
+              semesters,
+              years,
+              completedRequirements: serializeSetMap(completedRequirements),
+              checkedRequirementItems: serializeSetMap(checkedRequirementItems)
+          };
+
           const blob = new Blob([JSON.stringify(planData, null, 2)], { type: "application/json" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
@@ -1119,25 +1235,69 @@ const handleDownloadPDF = () => {
                 {deg}
               </option>
             ))}
+            {/* --- Degree Completion Progress Display --- */}
           </select>
+          {selectedDegree && (
+            <div
+              className={`degree-progress-display progress-${degreeCompletionPercentage.status}`}
+              title={
+                degreeCompletionPercentage.status === 'complete' ? "All categories marked complete!" :
+                degreeCompletionPercentage.status === 'warning' ? "Some categories pending completion." :
+                "Mark categories as complete to track progress."
+              }
+            >
+              Completion: {degreeCompletionPercentage.percentage}%
+            </div>
+          )}
+          {/* --- END: Degree Completion Progress Display --- */}
           {selectedDegree && degreeRequirements[selectedDegree] && (
              <div className="degree-accordion">
                 {Object.entries(degreeRequirements[selectedDegree]).map(([categoryKey, category]) => {
-                    const isOpen = openCategories.has(categoryKey);
+                    // --- CATEGORY LEVEL CHECKBOX LOGIC ---
+                    const isCategoryOpen = openCategories.has(categoryKey);
+                    const isCategoryComplete = completedRequirements[selectedDegree]?.has(categoryKey);
+
+                    // Handle the special "notes" array (for the main notes, not sub-notes in categories)
                     if (categoryKey === "notes" && Array.isArray(category)) {
-                    return (
-                        <div key={categoryKey} className="requirement-category category-notes">
-                        <button type="button" className="category-header" onClick={() => toggleCategory(categoryKey)} aria-expanded={isOpen}>
-                            <span>General Notes</span>
-                            <span className="toggle-icon" aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
-                        </button>
-                        {isOpen && (
-                            <div className="category-content">
-                            <ul>{category.map((note, idx) => <li key={`note-${idx}`}>{note}</li>)}</ul>
+                         return (
+                            <div key={categoryKey} className={`requirement-category category-notes ${isCategoryComplete ? 'requirement-completed' : ''}`}>
+                                <button type="button" className="category-header" onClick={() => toggleCategory(categoryKey)} aria-expanded={isCategoryOpen}>
+                                    <span className="category-header-content">
+                                        <input
+                                            type="checkbox"
+                                            className="requirement-checkbox hide-on-print"
+                                            checked={isCategoryComplete || false}
+                                            onChange={(e) => { e.stopPropagation(); toggleRequirementComplete(selectedDegree, categoryKey); }}
+                                            onClick={(e) => e.stopPropagation()}
+                                            title={`Mark 'General Notes' as complete/reviewed`}
+                                        />
+                                        <span>General Notes</span>
+                                    </span>
+                                    <span className="toggle-icon">{isCategoryOpen ? "▼" : "▶"}</span>
+                                </button>
+                                {isCategoryOpen && (
+                                    <div className="category-content">
+                                    <ul className="requirement-item-list"> {/* Added class for styling */}
+                                        {category.map((note, idx) => {
+                                            const itemSpecificKey = `${selectedDegree}-${categoryKey}-note-${idx}`;
+                                            const isItemChecked = checkedRequirementItems[selectedDegree]?.has(itemSpecificKey);
+                                            return (
+                                            <li key={itemSpecificKey} className={isItemChecked ? 'item-checked' : ''}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="requirement-item-checkbox hide-on-print"
+                                                    checked={isItemChecked || false}
+                                                    onChange={() => toggleCheckedRequirementItem(selectedDegree, itemSpecificKey)}
+                                                />
+                                                <span>{note}</span>
+                                            </li>
+                                            );
+                                        })}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        </div>
-                    );
+                        );
                     }
                     if (typeof category !== "object" || category === null || !category.title) return null;
 
@@ -1146,48 +1306,138 @@ const handleDownloadPDF = () => {
                     else if (category.creditsRequired) creditInfo = `(${category.creditsRequired} credits required)`;
 
                     return (
-                    <div key={categoryKey} className={`requirement-category category-${categoryKey}`}>
-                        <button type="button" className="category-header" onClick={() => toggleCategory(categoryKey)} aria-expanded={isOpen}>
-                        <span>{category.title} {creditInfo}</span>
-                        <span className="toggle-icon" aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
+                    <div key={categoryKey} className={`requirement-category category-${categoryKey} ${isCategoryComplete ? 'requirement-completed' : ''}`}>
+                        <button type="button" className="category-header" onClick={() => toggleCategory(categoryKey)} aria-expanded={isCategoryOpen}>
+                          <span className="category-header-content">
+                            <input
+                              type="checkbox"
+                              className="requirement-checkbox hide-on-print"
+                              checked={isCategoryComplete || false}
+                              onChange={(e) => { e.stopPropagation(); toggleRequirementComplete(selectedDegree, categoryKey); }}
+                              onClick={(e) => e.stopPropagation()}
+                              title={`Mark '${category.title}' as complete`}
+                            />
+                            <span>{category.title} {creditInfo}</span>
+                          </span>
+                          <span className="toggle-icon">{isCategoryOpen ? "▼" : "▶"}</span>
                         </button>
-                        {isOpen && (
+                        {isCategoryOpen && (
                         <div className="category-content">
                             {category.description && <p>{category.description.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}</p>}
+
+                            {/* Category-Specific Notes (if any) */}
                             {category.notes && Array.isArray(category.notes) && (
-                              <ul>
-                               {category.notes.map((note, idx) => <li key={`${categoryKey}-note-${idx}`}>{note}</li>)}
+                              <ul className="requirement-item-list">
+                               {category.notes.map((note, idx) => {
+                                 const itemSpecificKey = `${selectedDegree}-${categoryKey}-subnote-${idx}`;
+                                 const isItemChecked = checkedRequirementItems[selectedDegree]?.has(itemSpecificKey);
+                                 return (
+                                   <li key={itemSpecificKey} className={isItemChecked ? 'item-checked' : ''}>
+                                     <input
+                                       type="checkbox"
+                                       className="requirement-item-checkbox hide-on-print"
+                                       checked={isItemChecked || false}
+                                       onChange={() => toggleCheckedRequirementItem(selectedDegree, itemSpecificKey)}
+                                     />
+                                     <span>{note}</span>
+                                   </li>
+                                 );
+                               })}
                               </ul>
                             )}
+
+                            {/* Courses */}
                             {category.courses && Array.isArray(category.courses) && (
-                            <ul>{category.courses.map((course, idx) => <li key={`${categoryKey}-course-${idx}`}>{course}</li>)}</ul>
+                            <ul className="requirement-item-list">{category.courses.map((course, idx) => {
+                                const itemSpecificKey = `${selectedDegree}-${categoryKey}-course-${idx}`;
+                                const isItemChecked = checkedRequirementItems[selectedDegree]?.has(itemSpecificKey);
+                                return (
+                                    <li key={itemSpecificKey} className={isItemChecked ? 'item-checked' : ''}>
+                                        <input
+                                            type="checkbox"
+                                            className="requirement-item-checkbox hide-on-print"
+                                            checked={isItemChecked || false}
+                                            onChange={() => toggleCheckedRequirementItem(selectedDegree, itemSpecificKey)}
+                                        />
+                                        <span>{course}</span>
+                                    </li>
+                                );
+                            })}</ul>
                             )}
+
+                            {/* Options */}
                             {category.options && Array.isArray(category.options) && (
                             <>
                                 {category.countRequired && <p><em>(Choose {category.countRequired})</em></p>}
-                                <ul>{category.options.map((opt, idx) => <li key={`${categoryKey}-option-${idx}`}>{opt}</li>)}</ul>
+                                <ul className="requirement-item-list">{category.options.map((opt, idx) => {
+                                    const itemSpecificKey = `${selectedDegree}-${categoryKey}-option-${idx}`;
+                                    const isItemChecked = checkedRequirementItems[selectedDegree]?.has(itemSpecificKey);
+                                    return (
+                                        <li key={itemSpecificKey} className={isItemChecked ? 'item-checked' : ''}>
+                                            <input
+                                                type="checkbox"
+                                                className="requirement-item-checkbox hide-on-print"
+                                                checked={isItemChecked || false}
+                                                onChange={() => toggleCheckedRequirementItem(selectedDegree, itemSpecificKey)}
+                                            />
+                                            <span>{opt}</span>
+                                        </li>
+                                    );
+                                })}</ul>
                             </>
                             )}
+
+                            {/* Sequences */}
                             {category.sequences && Array.isArray(category.sequences) && (
                             <>
                                 {category.countRequired && <p><em>(Choose {category.countRequired} sequence)</em></p>}
                                 {category.sequences.map((sequence, seqIndex) => (
                                 <div key={`${categoryKey}-seq-${seqIndex}`} className="sequence-option">
                                     <p><strong>Option {seqIndex + 1}:</strong></p>
-                                    <ul>{sequence.map((sCourse, sIdx) => <li key={`${categoryKey}-seq-${seqIndex}-course-${sIdx}`}>{sCourse}</li>)}</ul>
+                                    <ul className="requirement-item-list">{sequence.map((sCourse, sIdx) => {
+                                        const itemSpecificKey = `${selectedDegree}-${categoryKey}-seq-${seqIndex}-course-${sIdx}`;
+                                        const isItemChecked = checkedRequirementItems[selectedDegree]?.has(itemSpecificKey);
+                                        return (
+                                            <li key={itemSpecificKey} className={isItemChecked ? 'item-checked' : ''}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="requirement-item-checkbox hide-on-print"
+                                                    checked={isItemChecked || false}
+                                                    onChange={() => toggleCheckedRequirementItem(selectedDegree, itemSpecificKey)}
+                                                />
+                                                <span>{sCourse}</span>
+                                            </li>
+                                        );
+                                    })}</ul>
                                 </div>
                                 ))}
                             </>
                             )}
+
+                            {/* Technical Electives */}
                             {categoryKey === "technicalElectives" && (
                             <div className="technical-electives-details">
                                 {category.optionsDescription && <p><em>{category.optionsDescription}</em></p>}
-                                {category.cmscOption && <p>- {category.cmscOption}</p>}
+                                {category.cmscOption && <p>- {category.cmscOption}</p>} {/* No checkbox for these general statements */}
                                 {category.cmpeOption && <p>- {category.cmpeOption}</p>}
                                 {category.mathOptions && Array.isArray(category.mathOptions) && (
                                 <>
                                     <p>- Maximum of two from the following MATH courses:</p>
-                                    <ul>{category.mathOptions.map((mathOpt, idx) => <li key={`math-opt-${idx}`}>{mathOpt}</li>)}</ul>
+                                    <ul className="requirement-item-list">{category.mathOptions.map((mathOpt, idx) => {
+                                        const itemSpecificKey = `${selectedDegree}-${categoryKey}-mathopt-${idx}`;
+                                        const isItemChecked = checkedRequirementItems[selectedDegree]?.has(itemSpecificKey);
+                                        return (
+                                            <li key={itemSpecificKey} className={isItemChecked ? 'item-checked' : ''}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="requirement-item-checkbox hide-on-print"
+                                                    checked={isItemChecked || false}
+                                                    onChange={() => toggleCheckedRequirementItem(selectedDegree, itemSpecificKey)}
+                                                />
+                                                <span>{mathOpt}</span>
+                                            </li>
+                                        );
+                                    })}</ul>
                                 </>
                                 )}
                                 {category.mathLimitNote && <p><em>{category.mathLimitNote}</em></p>}
@@ -1421,15 +1671,9 @@ const handleDownloadPDF = () => {
                                   >
                                     {semesterTotalCredits} Cr
                                   </div>
-                                  {/* REMOVED QUESTION MARK ICON
-                                  <div className="question-mark-container" title={getRecommendedCredits(semesterKey)}>
-                                    <span className="question-mark" aria-hidden="true">?</span>
-                                  </div>
-                                  */}
                                 </div>
                               </div>
                               <div className="courses" role="list" aria-label={`Courses in ${yearMap[year]} ${season}`}>
-                                {/* ... (course mapping and rendering logic remains the same) ... */}
                                 {semesterCourses.map((course) => {
                                   const itemKey = `${semesterKey}-${course.course_id}`;
                                   const isExpanded = expandedCourses.has(itemKey);
